@@ -10,7 +10,7 @@ using UnityEngine.EventSystems;
 /// 
 /// Cumple con el Criterio 1 de la Actividad 4.1: UI adaptable a móviles.
 /// </summary>
-public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
+public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
 {
     public enum ButtonDirection
     {
@@ -30,7 +30,17 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
 
     private bool isPressed = false;
 
+    private void Awake()
+    {
+        FindController();
+    }
+
     private void Start()
+    {
+        FindController();
+    }
+
+    private void FindController()
     {
         if (playerController == null)
         {
@@ -40,7 +50,9 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
 
     private void Update()
     {
-        if (!isPressed || playerController == null) return;
+        if (!isPressed) return;
+        if (playerController == null) FindController();
+        if (playerController == null) return;
 
         // Si es un botón direccional sostenido, emitir el vector correspondiente en cada frame
         switch (direction)
@@ -58,7 +70,6 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
                 playerController.SetMobileInput(new Vector2(1f, 0f));
                 break;
             case ButtonDirection.Jump:
-                // El salto se emite en el evento OnPointerDown para evitar repetición por frame
                 break;
         }
     }
@@ -66,18 +77,48 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
     public void OnPointerDown(PointerEventData eventData)
     {
         isPressed = true;
+        if (direction == ButtonDirection.Jump)
+        {
+            ExecuteJumpAction();
+        }
+    }
 
-        if (playerController != null && direction == ButtonDirection.Jump)
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (direction == ButtonDirection.Jump)
+        {
+            ExecuteJumpAction();
+        }
+    }
+
+    /// <summary>
+    /// Método público para vincular directamente al evento OnClick del componente Button de Unity.
+    /// </summary>
+    public void OnButtonClick()
+    {
+        if (direction == ButtonDirection.Jump)
+        {
+            ExecuteJumpAction();
+        }
+    }
+
+    private void ExecuteJumpAction()
+    {
+        if (playerController == null) FindController();
+        if (playerController != null)
         {
             playerController.MobileJump();
+        }
+        else
+        {
+            Debug.LogWarning("[VirtualTouchButton] No se encontró PlayerController3D en la escena para saltar.");
         }
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
         isPressed = false;
-
-        if (playerController != null && direction != ButtonDirection.Jump)
+        if (direction != ButtonDirection.Jump && playerController != null)
         {
             playerController.ResetMobileInput();
         }
@@ -86,7 +127,7 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
     private void OnDisable()
     {
         isPressed = false;
-        if (playerController != null)
+        if (playerController != null && direction != ButtonDirection.Jump)
         {
             playerController.ResetMobileInput();
         }
