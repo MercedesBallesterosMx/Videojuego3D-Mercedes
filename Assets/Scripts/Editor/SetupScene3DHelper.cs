@@ -16,9 +16,7 @@ public class SetupScene3DHelper : EditorWindow
     [MenuItem("Herramientas 3D/Montar Escenario y Controles 3D (Actividad 4.1)")]
     public static void GenerateComplete3DScene()
     {
-        Undo.IncrementCurrentGroup();
         Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.1");
-        int groupIndex = Undo.GetCurrentGroup();
 
         Debug.Log("--- Iniciando montaje de la escena 3D móvil (Actividad 4.1) ---");
 
@@ -37,7 +35,6 @@ public class SetupScene3DHelper : EditorWindow
         // 5. Construir Interfaz de Usuario (UI) Adaptada a Móviles (Criterio 1)
         SetupMobileUI(player.GetComponent<PlayerController3D>());
 
-        Undo.CollapseUndoGroup(groupIndex);
         EditorUtility.DisplayDialog("Montaje 3D Completo", 
             "¡La escena 3D para móviles ha sido configurada con éxito!\n\n" +
             "✓ Criterio 1: UI Móvil con botones táctiles y menú de pausa.\n" +
@@ -66,9 +63,6 @@ public class SetupScene3DHelper : EditorWindow
     private static GameObject SetupEnvironment()
     {
         GameObject envParent = new GameObject("Environment_3D");
-
-        // Materiales básicos si es posible
-        Shader standardShader = Shader.Find("Standard") ?? Shader.Find("Universal Render Pipeline/Lit");
 
         // Suelo principal (Ejes X y Z)
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
