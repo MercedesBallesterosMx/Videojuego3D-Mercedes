@@ -35,7 +35,7 @@ public class SetupScene3DHelper : EditorWindow
 
         Debug.Log("--- Iniciando montaje completo: Iluminación 3D, Skins, Partículas y Guardado de Escena ---");
 
-        // 1. Materiales seguros compatibles con URP y Built-in (Evita color magenta #FF00FF)
+        // 1. Configuración de Standard Shaders nativos
         Material matFloor = CreateOrUpdateMaterial("Mat_Floor_DarkSlate", new Color(0.12f, 0.16f, 0.22f), 0.25f);
         Material matPlayer = CreateOrUpdateMaterial("Mat_Player_VibrantGold", new Color(1.0f, 0.72f, 0.05f), 0.85f);
         Material matPlayerBand = CreateOrUpdateMaterial("Mat_Player_Band_Dark", new Color(0.12f, 0.16f, 0.22f), 0.90f);
@@ -74,7 +74,7 @@ public class SetupScene3DHelper : EditorWindow
             "✓ Personalización del Personaje (Criterio 2): 4 Skins temáticas (Dorado, Neón, Esmeralda, Cyan) con Trail 3D.\n" +
             "✓ Efectos de Partículas: Destello radial al pulsar SALTO y explosión al chocar con obstáculos.\n" +
             "✓ Botón de Skin en UI y Tecla 'C': Alterna el aspecto del personaje en tiempo real durante la partida.\n" +
-            "✓ Cero Shaders Magenta: MaterialHelper3D garantiza compatibilidad universal y colores vivos.\n" +
+            "✓ Shaders Standard: MaterialHelper3D garantiza compatibilidad nativa y colores vivos.\n" +
             "✓ Escena Guardada: La escena ha sido guardada en 'Assets/Scenes/MainGame3D.unity'.\n\n" +
             "Presiona Play (▶) para disfrutar la experiencia visual 3D.",
             "¡Excelente!");

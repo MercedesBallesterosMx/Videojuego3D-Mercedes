@@ -17,12 +17,12 @@ using System.Collections.Generic;
 /// </summary>
 public class SetupScenes45Helper : EditorWindow
 {
-    [MenuItem("Herramientas 3D/🌟 Corregir Shaders y Eliminar Color Morado (Recargar Escena)")]
+    [MenuItem("Herramientas 3D/🎨 Optimizar y Recargar Shaders de Escena")]
     public static void FixShadersAndRemovePurple()
     {
         MaterialHelper3D.InvalidateCache();
         Shader safeShader = MaterialHelper3D.GetSafeShader();
-        Debug.Log($"[FixShaders] Verificando pipeline activo (Shader: {safeShader.name}) y curando materiales...");
+        Debug.Log($"[FixShaders] Verificando pipeline activo (Shader: {safeShader.name}) y aplicando materiales...");
 
         Renderer[] renderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
         int fixedCount = 0;
@@ -49,7 +49,7 @@ public class SetupScenes45Helper : EditorWindow
 
             if (changed)
             {
-                Undo.RecordObject(r, "Curar Shaders Morados");
+                Undo.RecordObject(r, "Actualizar Materiales Standard");
                 r.sharedMaterials = mats;
                 EditorUtility.SetDirty(r);
             }
@@ -59,10 +59,9 @@ public class SetupScenes45Helper : EditorWindow
         UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
         AssetDatabase.SaveAssets();
 
-        Debug.Log($"[FixShaders] ¡Éxito! {fixedCount} materiales corregidos a '{safeShader.name}'. Color morado eliminado.");
-        EditorUtility.DisplayDialog("Shaders Corregidos con Éxito",
-            $"¡Se eliminó el color morado de la escena!\n\n" +
-            $"✓ {fixedCount} materiales actualizados al shader nativo '{safeShader.name}'.\n" +
+        Debug.Log($"[FixShaders] ¡Éxito! {fixedCount} materiales actualizados al shader nativo '{safeShader.name}'.");
+        EditorUtility.DisplayDialog("Optimización de Shaders",
+            $"Se actualizaron {fixedCount} materiales al shader nativo '{safeShader.name}'.\n\n" +
             $"✓ Pista: Azul pizarra oscuro de alto contraste\n" +
             $"✓ Esfera: Dorado solar brillante con banda oscura\n" +
             $"✓ Rampas y obstáculos: Cian eléctrico y rojo carmín.", "Aceptar");
