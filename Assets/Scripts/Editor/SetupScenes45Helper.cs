@@ -56,7 +56,7 @@ public class SetupScenes45Helper : EditorWindow
         }
 
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
-        UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenesAndStageDependencies();
+        UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
         AssetDatabase.SaveAssets();
 
         Debug.Log($"[FixShaders] ¡Éxito! {fixedCount} materiales corregidos a '{safeShader.name}'. Color morado eliminado.");
