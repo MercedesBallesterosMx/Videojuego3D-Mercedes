@@ -4,10 +4,11 @@ using UnityEngine;
 
 /// <summary>
 /// Generador procedimental infinito y modular de niveles tridimensionales.
-/// Cumple con los Criterios 1 y 2 de la Actividad 4.3:
-/// - Generación continua e infinita de secciones mediante código en tiempo de ejecución.
-/// - Parámetros completamente configurables desde el Inspector de Unity (modularidad).
-/// - Optimización para móviles mediante descarte y destrucción de secciones rebasadas.
+/// Cumple con la Actividad 4.3:
+/// - Generación continua e infinita de secciones en tiempo de ejecución.
+/// - Cambia dinámicamente la geometría (ancho de pista, abismos para saltar) y materiales
+///   en función del nivel actual reportado por DifficultyManager3D.
+/// - Reciclaje de memoria automático para mantener 60 FPS estables en móviles.
 /// </summary>
 public class LevelGenerator3D : MonoBehaviour
 {
@@ -17,26 +18,19 @@ public class LevelGenerator3D : MonoBehaviour
     [Tooltip("Transform del personaje principal para evaluar la distancia de generación.")]
     [SerializeField] private Transform playerTransform;
 
-    [Header("Prefabs de Módulos (Configurables en Inspector)")]
-    [Tooltip("Catálogo de módulos tridimensionales que se pueden generar aleatoriamente.")]
-    [SerializeField] private List<GameObject> sectionPrefabs = new List<GameObject>();
-
-    [Tooltip("Módulo inicial seguro sin obstáculos para el arranque de la partida.")]
-    [SerializeField] private GameObject starterSectionPrefab;
-
     [Header("Configuración del Bucle Infinito")]
     [Tooltip("Cantidad de módulos activos precargados al iniciar la escena.")]
     [Range(3, 12)]
     [SerializeField] private int initialSectionsCount = 6;
 
     [Tooltip("Longitud predeterminada de cada sección en el eje Z (en unidades).")]
-    [SerializeField] private float defaultSectionLength = 25f;
+    [SerializeField] private float defaultSectionLength = 28f;
 
     [Tooltip("Distancia de visión por delante del jugador antes de generar el siguiente módulo.")]
-    [SerializeField] private float spawnDistanceAhead = 75f;
+    [SerializeField] private float spawnDistanceAhead = 85f;
 
     [Tooltip("Distancia que debe quedar atrás del jugador una sección para ser eliminada de memoria.")]
-    [SerializeField] private float despawnDistanceBehind = 40f;
+    [SerializeField] private float despawnDistanceBehind = 45f;
 
     [Header("Contenedor Jerárquico")]
     [Tooltip("Transform padre para organizar los módulos instanciados en la jerarquía.")]
@@ -45,6 +39,7 @@ public class LevelGenerator3D : MonoBehaviour
     // Estado interno del generador
     private Vector3 nextSpawnPoint = Vector3.zero;
     private readonly Queue<GameObject> activeSections = new Queue<GameObject>();
+    private int generatedSectionsCount = 0;
 
     private void Awake()
     {
@@ -76,7 +71,6 @@ public class LevelGenerator3D : MonoBehaviour
             trackParent = parentObj.transform;
         }
 
-        // Posición de inicio en Z
         nextSpawnPoint = new Vector3(0f, 0f, 0f);
 
         // Generar secciones iniciales
@@ -93,29 +87,14 @@ public class LevelGenerator3D : MonoBehaviour
             SpawnNextSection();
         }
 
-        // 2. Destruir módulos viejos que quedaron rezagados detrás del jugador (Ahorro de memoria en móviles)
+        // 2. Destruir módulos viejos que quedaron rezagados detrás del jugador (Ahorro de RAM)
         RecyclePassedSections();
     }
 
-    /// <summary>
-    /// Construye los primeros módulos al comenzar la partida.
-    /// </summary>
     private void InitializeStartingTrack()
     {
-        // Primer tramo seguro de arranque
-        if (starterSectionPrefab != null)
-        {
-            SpawnSectionFromPrefab(starterSectionPrefab);
-        }
-        else if (sectionPrefabs.Count > 0)
-        {
-            SpawnSectionFromPrefab(sectionPrefabs[0]);
-        }
-        else
-        {
-            // Generador procedural procedural si no hay prefabs asignados
-            SpawnProceduralFallbackSection(false);
-        }
+        // Primer tramo seguro de arranque (Nivel 1)
+        SpawnProceduralSection(false, 1);
 
         // Generar el resto de secciones iniciales
         for (int i = 1; i < initialSectionsCount; i++)
@@ -124,107 +103,126 @@ public class LevelGenerator3D : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Selecciona e instancia la siguiente sección modular en función de la dificultad.
-    /// </summary>
     public void SpawnNextSection()
     {
-        if (sectionPrefabs != null && sectionPrefabs.Count > 0)
-        {
-            // Filtrar módulos compatibles con la dificultad actual
-            int currentTier = DifficultyManager3D.Instance != null ? 
-                Mathf.CeilToInt(DifficultyManager3D.Instance.CurrentSpeedMultiplier * 1.5f) : 1;
-
-            GameObject selectedPrefab = SelectPrefabForDifficulty(currentTier);
-            SpawnSectionFromPrefab(selectedPrefab);
-        }
-        else
-        {
-            // Fallback procedimental con obstáculos geométricos
-            SpawnProceduralFallbackSection(true);
-        }
-    }
-
-    private GameObject SelectPrefabForDifficulty(int tier)
-    {
-        List<GameObject> candidates = new List<GameObject>();
-
-        foreach (GameObject prefab in sectionPrefabs)
-        {
-            if (prefab == null) continue;
-            TrackSection3D sec = prefab.GetComponent<TrackSection3D>();
-            if (sec == null || sec.RequiredDifficultyTier <= tier)
-            {
-                candidates.Add(prefab);
-            }
-        }
-
-        if (candidates.Count == 0) candidates = sectionPrefabs;
-        int randomIndex = Random.Range(0, candidates.Count);
-        return candidates[randomIndex];
-    }
-
-    private void SpawnSectionFromPrefab(GameObject prefab)
-    {
-        if (prefab == null) return;
-
-        GameObject newSection = Instantiate(prefab, nextSpawnPoint, Quaternion.identity, trackParent);
-        activeSections.Enqueue(newSection);
-
-        TrackSection3D trackComponent = newSection.GetComponent<TrackSection3D>();
-        if (trackComponent != null)
-        {
-            nextSpawnPoint = trackComponent.GetConnectionPosition();
-        }
-        else
-        {
-            nextSpawnPoint += new Vector3(0f, 0f, defaultSectionLength);
-        }
+        int currentLevel = DifficultyManager3D.Instance != null ? DifficultyManager3D.Instance.CurrentLevelNumber : 1;
+        SpawnProceduralSection(true, currentLevel);
     }
 
     /// <summary>
-    /// Crea dinámicamente un tramo de suelo con rampa u obstáculos si no existen prefabs en la escena.
+    /// Construye procedimentalmente una sección de pista adaptada a las características del nivel actual.
     /// </summary>
-    private void SpawnProceduralFallbackSection(bool withObstacles)
+    private void SpawnProceduralSection(bool withObstacles, int level)
     {
-        GameObject sectionObj = new GameObject($"ProceduralSection_{activeSections.Count + 1}");
+        generatedSectionsCount++;
+        GameObject sectionObj = new GameObject($"Section_{generatedSectionsCount}_Lvl{level}");
         sectionObj.transform.position = nextSpawnPoint;
         sectionObj.transform.SetParent(trackParent);
 
-        // Suelo principal del tramo
-        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        floor.name = "Floor";
-        floor.transform.SetParent(sectionObj.transform);
-        floor.transform.localPosition = new Vector3(0f, -0.5f, defaultSectionLength * 0.5f);
-        floor.transform.localScale = new Vector3(14f, 1f, defaultSectionLength);
+        // Obtener la configuración temática del nivel actual
+        DifficultyManager3D.DifficultyTier tier = DifficultyManager3D.Instance != null ? 
+            DifficultyManager3D.Instance.CurrentTier : default;
 
-        // Material del suelo si existe
-        Material floorMat = Resources.Load<Material>("Mat_Floor_DarkSlate") 
-                         ?? floor.GetComponent<Renderer>().sharedMaterial;
-        floor.GetComponent<Renderer>().sharedMaterial = floorMat;
+        float trackWidth = tier.trackWidth > 0 ? tier.trackWidth : 14f;
+        Color floorColor = tier.floorColor.a > 0 ? tier.floorColor : new Color(0.12f, 0.16f, 0.22f);
+        Color obsColor = tier.obstacleColor.a > 0 ? tier.obstacleColor : new Color(0.92f, 0.20f, 0.25f);
 
-        // Obstáculo aleatorio si corresponde
-        if (withObstacles && Random.value > 0.35f)
+        // Crear material temporal o compartido para el suelo del nivel
+        Material floorMat = CreateDynamicMaterial($"Mat_Floor_Lvl{level}", floorColor);
+        Material obsMat = CreateDynamicMaterial($"Mat_Obs_Lvl{level}", obsColor);
+
+        // --- TIPO DE GEOMETRÍA SEGÚN EL NIVEL ---
+        // En niveles avanzados (3 y 4) se intercalan tramos con abismos para saltar o rampas
+        bool isJumpSection = (level >= 3) && (generatedSectionsCount % 3 == 0);
+
+        if (isJumpSection)
         {
-            GameObject obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            obs.name = "Obstacle_Procedural";
-            obs.transform.SetParent(sectionObj.transform);
-            float randomX = Random.Range(-3.5f, 3.5f);
-            obs.transform.localPosition = new Vector3(randomX, 0.75f, defaultSectionLength * 0.5f);
-            obs.transform.localScale = new Vector3(2.5f, 1.5f, 1.5f);
-
-            // Añadir oscilación y peligro letal
-            obs.AddComponent<MovingObstacle3D>();
-            obs.AddComponent<HazardPart3D>();
+            // Tramo con rampa y salto al vacío (Exige usar el botón de SALTO)
+            BuildJumpSection(sectionObj.transform, trackWidth, floorMat, obsMat);
+        }
+        else
+        {
+            // Tramo continuo estándar con el ancho y color del nivel
+            BuildStandardSection(sectionObj.transform, trackWidth, floorMat, withObstacles, obsMat, level);
         }
 
         activeSections.Enqueue(sectionObj);
         nextSpawnPoint += new Vector3(0f, 0f, defaultSectionLength);
     }
 
-    /// <summary>
-    /// Destruye secciones que ya quedaron muy por detrás del jugador.
-    /// </summary>
+    private void BuildStandardSection(Transform parent, float width, Material floorMat, bool withObstacles, Material obsMat, int level)
+    {
+        // 1. Suelo del tramo con el ancho del nivel
+        GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor.name = "Floor";
+        floor.transform.SetParent(parent);
+        floor.transform.localPosition = new Vector3(0f, -0.5f, defaultSectionLength * 0.5f);
+        floor.transform.localScale = new Vector3(width, 1f, defaultSectionLength);
+        floor.GetComponent<Renderer>().sharedMaterial = floorMat;
+
+        // 2. Obstáculos dinámicos acordes al nivel
+        if (withObstacles)
+        {
+            int obstacleCount = level >= 3 ? 2 : 1;
+            for (int i = 0; i < obstacleCount; i++)
+            {
+                GameObject obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                obs.name = $"DynamicHazard_Lvl{level}_{i + 1}";
+                obs.transform.SetParent(parent);
+
+                float zOffset = defaultSectionLength * (0.35f + (i * 0.35f));
+                obs.transform.localPosition = new Vector3(0f, 0.75f, zOffset);
+                obs.transform.localScale = new Vector3(2.4f, 1.5f, 1.5f);
+                obs.GetComponent<Renderer>().sharedMaterial = obsMat;
+
+                // Dinámica tridimensional: oscilación horizontal acelerada
+                MovingObstacle3D mover = obs.AddComponent<MovingObstacle3D>();
+                HazardPart3D hazard = obs.AddComponent<HazardPart3D>();
+            }
+        }
+    }
+
+    private void BuildJumpSection(Transform parent, float width, Material floorMat, Material obsMat)
+    {
+        // Primer tramo antes del salto
+        float halfLength = defaultSectionLength * 0.35f;
+        GameObject floor1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor1.name = "Floor_BeforeGap";
+        floor1.transform.SetParent(parent);
+        floor1.transform.localPosition = new Vector3(0f, -0.5f, halfLength * 0.5f);
+        floor1.transform.localScale = new Vector3(width, 1f, halfLength);
+        floor1.GetComponent<Renderer>().sharedMaterial = floorMat;
+
+        // Rampa de despegue
+        GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        ramp.name = "Ramp_Jump";
+        ramp.transform.SetParent(parent);
+        ramp.transform.localPosition = new Vector3(0f, 0.6f, halfLength + 3f);
+        ramp.transform.rotation = Quaternion.Euler(-18f, 0f, 0f);
+        ramp.transform.localScale = new Vector3(width * 0.7f, 0.8f, 7f);
+        ramp.GetComponent<Renderer>().sharedMaterial = floorMat;
+
+        // Segundo tramo de aterrizaje después del abismo (Requiere haber saltado)
+        float landingZ = defaultSectionLength * 0.75f;
+        float landingLength = defaultSectionLength * 0.25f;
+        GameObject floor2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        floor2.name = "Floor_AfterLanding";
+        floor2.transform.SetParent(parent);
+        floor2.transform.localPosition = new Vector3(0f, 1.25f, landingZ);
+        floor2.transform.localScale = new Vector3(width, 1f, landingLength);
+        floor2.GetComponent<Renderer>().sharedMaterial = floorMat;
+    }
+
+    private Material CreateDynamicMaterial(string name, Color col)
+    {
+        Shader shader = Shader.Find("Standard") ?? Shader.Find("Diffuse");
+        Material mat = new Material(shader);
+        mat.color = col;
+        if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
+        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.4f);
+        return mat;
+    }
+
     private void RecyclePassedSections()
     {
         while (activeSections.Count > 0)
@@ -236,7 +234,6 @@ public class LevelGenerator3D : MonoBehaviour
                 continue;
             }
 
-            // Si la sección más antigua quedó detrás del margen de despawn
             if (playerTransform.position.z - oldestSection.transform.position.z > despawnDistanceBehind)
             {
                 activeSections.Dequeue();
@@ -249,9 +246,6 @@ public class LevelGenerator3D : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Reinicia la pista para un nuevo intento del bucle de juego.
-    /// </summary>
     public void ResetTrack()
     {
         while (activeSections.Count > 0)
@@ -261,6 +255,7 @@ public class LevelGenerator3D : MonoBehaviour
         }
 
         nextSpawnPoint = Vector3.zero;
+        generatedSectionsCount = 0;
         InitializeStartingTrack();
     }
 }

@@ -9,7 +9,8 @@ using System.IO;
 /// <summary>
 /// Asistente de Editor integral para Unity que automatiza el montaje de la escena para las Actividades 4.1, 4.2 y 4.3.
 /// Integra el entorno 3D, personaje físico, cámara cinematográfica, contadores UI,
-/// curva de dificultad progresiva, generador procedimental infinito (LevelGenerator3D)
+/// generador procedimental infinito dinámico (LevelGenerator3D), curva de dificultad real
+/// con cambio de atmósfera, pista, obstáculos, velocidad y banner central (DifficultyManager3D),
 /// y el bucle de juego con panel modal de Game Over y reinicio (GameLoopManager3D).
 /// 
 /// Accesible desde el menú superior: 'Herramientas 3D > Montar Escenario Dinámico e Infinito (Actividad 4.3)'
@@ -21,12 +22,10 @@ public class SetupScene3DHelper : EditorWindow
     {
         Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.3");
 
-        Debug.Log("--- Iniciando montaje completo de la escena 4.3 con Generador Infinito y Game Loop ---");
+        Debug.Log("--- Iniciando montaje completo con Niveles Dinámicos y Bucle de Juego ---");
 
-        // 1. Detectar shader compatible (evita el color magenta/rosa)
         Shader universalShader = ResolveCompatibleShader();
 
-        // 2. Crear materiales de alto contraste
         Material matFloor = CreateOrUpdateMaterial("Mat_Floor_DarkSlate", universalShader, new Color(0.12f, 0.16f, 0.22f), 0.2f);
         Material matPlayer = CreateOrUpdateMaterial("Mat_Player_VibrantGold", universalShader, new Color(1.0f, 0.72f, 0.0f), 0.8f);
         Material matPlayerBand = CreateOrUpdateMaterial("Mat_Player_Band_Dark", universalShader, new Color(0.06f, 0.09f, 0.16f), 0.9f);
@@ -34,31 +33,26 @@ public class SetupScene3DHelper : EditorWindow
         Material matPlatform = CreateOrUpdateMaterial("Mat_Platform_EmeraldGreen", universalShader, new Color(0.08f, 0.75f, 0.45f), 0.5f);
         Material matObstacle = CreateOrUpdateMaterial("Mat_Obstacle_RubyRed", universalShader, new Color(0.92f, 0.20f, 0.25f), 0.4f);
 
-        // 3. Configurar Iluminación
         SetupLighting();
 
-        // 4. Construir Escenario Inicial con Módulos
         GameObject groundParent = SetupEnvironment(matFloor, matRamp, matPlatform, matObstacle);
 
-        // 5. Crear Personaje Principal con Físicas y color dorado
         GameObject player = SetupPlayer(matPlayer, matPlayerBand);
 
-        // 6. Configurar Cámara Cinemática
         SetupCamera(player.transform);
 
-        // 7. Configurar Gestores de Puntuación, Dificultad, Generador Infinito y Bucle de Juego
         SetupGameManagers(player.GetComponent<PlayerController3D>());
 
-        // 8. Construir Interfaz de Usuario Móvil (Contadores, D-Pad, Botón Salto y Modal Game Over)
         SetupMobileUI(player.GetComponent<PlayerController3D>());
 
         EditorUtility.DisplayDialog("Montaje de Actividad 4.3 Concluido", 
             "¡El proyecto 3D ha sido configurado con éxito para la Actividad 4.3!\n\n" +
-            "✓ Generación Infinita: LevelGenerator3D genera dinámicamente nuevos módulos al avanzar en Z y destruye los rebasados.\n" +
-            "✓ Arquitectura Configurable: Todos los parámetros de longitud, distancia y prefabs son editables en el Inspector.\n" +
-            "✓ Bucle de Juego (Game Loop): Detección de caída o impacto letal (HazardPart3D) con modal de Game Over y botón Reintentar.\n" +
-            "✓ Persistencia y Dificultad: Score continuo en Z, HighScore con PlayerPrefs y fases progresivas de aceleración.\n\n" +
-            "Presiona Play (▶) para probar el circuito infinito y el bucle de juego.", 
+            "✓ Niveles Dinámicos Reales: Cada nivel cambia el color de pista, color de obstáculos y atmósfera de la cámara.\n" +
+            "✓ Progresión Visible: La velocidad del jugador se acelera perceptiblemente (+40% en Nivel 2, +75% en Nivel 3).\n" +
+            "✓ Banner Central de Subida de Nivel: Al ascender de nivel, un cartel central anuncia el nuevo mundo.\n" +
+            "✓ Tramos con Salto en Niveles Avanzados: En nivel 3 y 4 se generan abismos que exigen usar el botón de SALTO.\n" +
+            "✓ Bucle de Juego: Game Over al colisionar o caer al vacío con botón Reintentar instantáneo.\n\n" +
+            "Presiona Play (▶) para probar la progresión entre niveles.", 
             "¡Excelente!");
     }
 
@@ -179,7 +173,6 @@ public class SetupScene3DHelper : EditorWindow
         player.transform.localScale = Vector3.one * 1.4f;
         player.GetComponent<Renderer>().sharedMaterial = playerMat;
 
-        // Banda oscura para visualización de giro
         GameObject band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         band.name = "Ball_RotationBand";
         band.transform.SetParent(player.transform, false);
@@ -240,26 +233,22 @@ public class SetupScene3DHelper : EditorWindow
             gmObj = new GameObject("GameManagers_3D");
         }
 
-        // 1. ScoreManager3D
         ScoreManager3D scoreManager = gmObj.GetComponent<ScoreManager3D>();
         if (scoreManager == null) scoreManager = gmObj.AddComponent<ScoreManager3D>();
 
-        // 2. DifficultyManager3D
         DifficultyManager3D diffManager = gmObj.GetComponent<DifficultyManager3D>();
         if (diffManager == null) diffManager = gmObj.AddComponent<DifficultyManager3D>();
 
-        // 3. LevelGenerator3D (Generador Procedimental Infinito)
         LevelGenerator3D levelGen = gmObj.GetComponent<LevelGenerator3D>();
         if (levelGen == null) levelGen = gmObj.AddComponent<LevelGenerator3D>();
         SerializedObject soLg = new SerializedObject(levelGen);
         soLg.FindProperty("playerTransform").objectReferenceValue = controller.transform;
         soLg.FindProperty("initialSectionsCount").intValue = 6;
-        soLg.FindProperty("defaultSectionLength").floatValue = 25f;
-        soLg.FindProperty("spawnDistanceAhead").floatValue = 75f;
-        soLg.FindProperty("despawnDistanceBehind").floatValue = 40f;
+        soLg.FindProperty("defaultSectionLength").floatValue = 28f;
+        soLg.FindProperty("spawnDistanceAhead").floatValue = 85f;
+        soLg.FindProperty("despawnDistanceBehind").floatValue = 45f;
         soLg.ApplyModifiedProperties();
 
-        // 4. GameLoopManager3D (Control del Bucle de Juego)
         GameLoopManager3D gameLoop = gmObj.GetComponent<GameLoopManager3D>();
         if (gameLoop == null) gameLoop = gmObj.AddComponent<GameLoopManager3D>();
         SerializedObject soGl = new SerializedObject(gameLoop);
@@ -313,9 +302,25 @@ public class SetupScene3DHelper : EditorWindow
 
         Text txtScore = CreateHeaderText(hudPanelObj.transform, "Txt_CurrentScore", "Puntos: 0", new Vector2(200f, -30f), 38, Color.white, TextAnchor.MiddleLeft);
         Text txtHighScore = CreateHeaderText(hudPanelObj.transform, "Txt_HighScore", "Récord: 0", new Vector2(0f, -30f), 32, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
-        Text txtDiff = CreateHeaderText(hudPanelObj.transform, "Txt_Difficulty", "Dificultad: Nivel 1", new Vector2(-220f, -30f), 30, new Color(0.2f, 0.85f, 0.5f), TextAnchor.MiddleRight);
+        Text txtDiff = CreateHeaderText(hudPanelObj.transform, "Txt_Difficulty", "NIVEL 1: ZONA AZUL", new Vector2(-220f, -30f), 30, new Color(0.3f, 0.85f, 1.0f), TextAnchor.MiddleRight);
 
-        // 2. Panel Modal de Game Over (Bucle de Juego)
+        // 2. Banner Central de Subida de Nivel
+        Transform bannerPanel = canvasObj.transform.Find("Banner_LevelUpPanel");
+        if (bannerPanel != null) DestroyImmediate(bannerPanel.gameObject);
+
+        GameObject bannerObj = new GameObject("Banner_LevelUpPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        bannerObj.transform.SetParent(canvasObj.transform, false);
+        RectTransform rtBanner = bannerObj.GetComponent<RectTransform>();
+        rtBanner.sizeDelta = new Vector2(750f, 170f);
+        rtBanner.anchoredPosition = new Vector2(0f, 140f);
+        bannerObj.GetComponent<Image>().color = new Color(0.05f, 0.08f, 0.15f, 0.92f);
+
+        Text txtBannerTitle = CreateHeaderText(bannerObj.transform, "Txt_BannerTitle", "★ ¡NIVEL 2: ZONA PÚRPURA! ★", new Vector2(0f, 30f), 38, Color.yellow, TextAnchor.MiddleCenter);
+        Text txtBannerSubtitle = CreateHeaderText(bannerObj.transform, "Txt_BannerSubtitle", "¡Velocidad aumentada a x1.40! Nuevos obstáculos activados.", new Vector2(0f, -30f), 24, Color.white, TextAnchor.MiddleCenter);
+
+        bannerObj.SetActive(false); // Oculto al inicio
+
+        // 3. Panel Modal de Game Over (Bucle de Juego)
         Transform goPanel = canvasObj.transform.Find("Modal_GameOverPanel");
         if (goPanel != null) DestroyImmediate(goPanel.gameObject);
 
@@ -329,7 +334,6 @@ public class SetupScene3DHelper : EditorWindow
         Image imgGo = goPanelObj.GetComponent<Image>();
         imgGo.color = new Color(0.06f, 0.08f, 0.12f, 0.90f);
 
-        // Cuadro central de diálogo Game Over
         GameObject modalBox = new GameObject("DialogBox", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         modalBox.transform.SetParent(goPanelObj.transform, false);
         RectTransform rtBox = modalBox.GetComponent<RectTransform>();
@@ -341,15 +345,13 @@ public class SetupScene3DHelper : EditorWindow
         Text txtFinalScore = CreateHeaderText(modalBox.transform, "FinalScore", "Puntuación: 0", new Vector2(0f, 70f), 32, Color.white, TextAnchor.MiddleCenter);
         Text txtFinalHighScore = CreateHeaderText(modalBox.transform, "FinalHighScore", "Mejor Récord: 0", new Vector2(0f, 10f), 28, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
 
-        // Botón Reintentar Partida
         GameObject btnRetryObj = CreateSimpleButton(modalBox.transform, "Btn_Retry", "REINTENTAR ⟳", new Vector2(0f, -80f), new Vector2(300f, 70f), new Color(0.10f, 0.65f, 0.40f));
         Button btnRetry = btnRetryObj.GetComponent<Button>();
 
-        // Botón Menú Principal
         GameObject btnMenuObj = CreateSimpleButton(modalBox.transform, "Btn_Menu", "MENÚ PRINCIPAL", new Vector2(0f, -165f), new Vector2(300f, 60f), new Color(0.20f, 0.25f, 0.35f));
         Button btnMenu = btnMenuObj.GetComponent<Button>();
 
-        goPanelObj.SetActive(false); // Oculto al inicio
+        goPanelObj.SetActive(false);
 
         // Conectar referencias en GameManagers_3D
         GameObject gmObj = GameObject.Find("GameManagers_3D");
@@ -371,6 +373,9 @@ public class SetupScene3DHelper : EditorWindow
                 SerializedObject soDm = new SerializedObject(dm);
                 soDm.FindProperty("playerController").objectReferenceValue = controller;
                 soDm.FindProperty("difficultyText").objectReferenceValue = txtDiff;
+                soDm.FindProperty("levelBannerPanel").objectReferenceValue = bannerObj;
+                soDm.FindProperty("levelBannerTitleText").objectReferenceValue = txtBannerTitle;
+                soDm.FindProperty("levelBannerSubtitleText").objectReferenceValue = txtBannerSubtitle;
                 soDm.ApplyModifiedProperties();
             }
 
@@ -388,7 +393,7 @@ public class SetupScene3DHelper : EditorWindow
             }
         }
 
-        // 3. Panel de Controles Móviles (D-Pad y Salto)
+        // 4. Panel de Controles Móviles (D-Pad y Salto)
         Transform controlsPanel = canvasObj.transform.Find("MobileControlsPanel");
         if (controlsPanel != null) DestroyImmediate(controlsPanel.gameObject);
 
@@ -414,7 +419,7 @@ public class SetupScene3DHelper : EditorWindow
         Vector2 jumpPos = new Vector2(-160, 160);
         CreateTouchButton(controlsPanel, "Btn_Jump", "SALTO\n▲", jumpPos, new Vector2(1, 0), new Vector2(1, 0), VirtualTouchButton.ButtonDirection.Jump, controller, new Vector2(170, 170), jumpBtnColor);
 
-        Debug.Log("[SetupScene3DHelper] UI móvil generada con HUD, Modal Game Over y Controles.");
+        Debug.Log("[SetupScene3DHelper] UI móvil generada con HUD, Banner de Nivel, Modal Game Over y Controles.");
     }
 
     private static GameObject CreateSimpleButton(Transform parent, string name, string label, Vector2 pos, Vector2 size, Color bgColor)
@@ -454,7 +459,7 @@ public class SetupScene3DHelper : EditorWindow
         textObj.transform.SetParent(parent, false);
 
         RectTransform rt = textObj.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(500f, 60f);
+        rt.sizeDelta = new Vector2(650f, 60f);
         rt.anchoredPosition = anchoredPos;
 
         Text txt = textObj.GetComponent<Text>();
