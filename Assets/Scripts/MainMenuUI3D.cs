@@ -22,6 +22,7 @@ public class MainMenuUI3D : MonoBehaviour
     [Header("Botones de Selección de Nivel")]
     [SerializeField] private Button level1Button;
     [SerializeField] private Button level2Button;
+    [SerializeField] private Button level3Button;
     [SerializeField] private Button closeLevelSelectButton;
 
     [Header("Botones de Instrucciones")]
@@ -102,6 +103,17 @@ public class MainMenuUI3D : MonoBehaviour
                 if (NavigationManager3D.Instance != null)
                 {
                     NavigationManager3D.Instance.LoadLevel2();
+                }
+            });
+        }
+
+        if (level3Button != null)
+        {
+            level3Button.onClick.RemoveAllListeners();
+            level3Button.onClick.AddListener(() => {
+                if (NavigationManager3D.Instance != null)
+                {
+                    NavigationManager3D.Instance.LoadLevel3();
                 }
             });
         }

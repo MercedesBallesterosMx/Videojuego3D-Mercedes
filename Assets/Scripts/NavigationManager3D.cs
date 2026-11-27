@@ -17,6 +17,7 @@ public class NavigationManager3D : MonoBehaviour
     [SerializeField] private string mainMenuSceneName = "MainMenu3D";
     [SerializeField] private string level1SceneName = "Level_01";
     [SerializeField] private string level2SceneName = "Level_02";
+    [SerializeField] private string level3SceneName = "Level_03";
 
     [Header("Efecto de Transición")]
     [Tooltip("Tiempo de retardo opcional para transiciones suaves.")]
@@ -75,8 +76,17 @@ public class NavigationManager3D : MonoBehaviour
     }
 
     /// <summary>
+    /// Carga explícitamente el Nivel 3 (Zona Carmesí / Experto - Proyecto Integrador).
+    /// </summary>
+    public void LoadLevel3()
+    {
+        if (isTransitioning) return;
+        StartCoroutine(TransitionRoutine(level3SceneName));
+    }
+
+    /// <summary>
     /// Avanza de forma inteligente al siguiente nivel consecutivo en el flujo del juego.
-    /// (Criterio 1 de Moodle: mínimo 2 niveles consecutivos).
+    /// Flujo de 3 niveles progresivos: Level_01 -> Level_02 -> Level_03 -> MainMenu3D (Victoria Total).
     /// </summary>
     public void LoadNextLevel()
     {
@@ -90,7 +100,11 @@ public class NavigationManager3D : MonoBehaviour
         }
         else if (currentScene == level2SceneName)
         {
-            // Al completar el nivel 2, regresa al Menú Principal o cicla
+            StartCoroutine(TransitionRoutine(level3SceneName));
+        }
+        else if (currentScene == level3SceneName)
+        {
+            // Al completar el nivel 3 (Final), regresa al Menú Principal con récord actualizado
             StartCoroutine(TransitionRoutine(mainMenuSceneName));
         }
         else
