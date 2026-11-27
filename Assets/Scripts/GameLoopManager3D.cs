@@ -135,6 +135,12 @@ public class GameLoopManager3D : MonoBehaviour
             gameOverPanel.SetActive(true);
         }
 
+        // Atmósfera dramática de iluminación y niebla (Actividad 4.4)
+        if (LightingAtmosphereManager3D.Instance != null)
+        {
+            LightingAtmosphereManager3D.Instance.ApplyGameOverAtmosphere();
+        }
+
         // Pausar o ralentizar el tiempo ligeramente para dramatismo
         Time.timeScale = 0.2f;
     }

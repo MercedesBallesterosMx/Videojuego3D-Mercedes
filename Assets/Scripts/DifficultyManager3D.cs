@@ -28,6 +28,7 @@ public class DifficultyManager3D : MonoBehaviour
         public Color floorColor;
         public Color obstacleColor;
         public Color cameraBgColor;
+        public Color lightColor;
         public Color bannerTextColor;
     }
 
@@ -46,6 +47,7 @@ public class DifficultyManager3D : MonoBehaviour
             floorColor = new Color(0.12f, 0.16f, 0.22f),       // Azul pizarra oscuro
             obstacleColor = new Color(0.92f, 0.20f, 0.25f),    // Rojo rubí
             cameraBgColor = new Color(0.10f, 0.14f, 0.20f),    // Noche crepuscular
+            lightColor = new Color(1.0f, 0.98f, 0.92f),        // Luz cálida diurna
             bannerTextColor = new Color(0.3f, 0.85f, 1.0f)
         },
         // NIVEL 2: Zona Eléctrica Púrpura (Velocidad +40%, obstáculos dinámicos)
@@ -59,6 +61,7 @@ public class DifficultyManager3D : MonoBehaviour
             floorColor = new Color(0.22f, 0.10f, 0.35f),       // Púrpura oscuro
             obstacleColor = new Color(1.0f, 0.75f, 0.1f),      // Amarillo eléctrico
             cameraBgColor = new Color(0.15f, 0.08f, 0.25f),    // Violeta profundo
+            lightColor = new Color(0.9f, 0.75f, 1.0f),         // Luz violeta eléctrica
             bannerTextColor = new Color(0.9f, 0.4f, 1.0f)
         },
         // NIVEL 3: Zona Volcánica Lava (Velocidad +75%, pista estrecha)
@@ -72,6 +75,7 @@ public class DifficultyManager3D : MonoBehaviour
             floorColor = new Color(0.18f, 0.08f, 0.08f),       // Carbón oscuro
             obstacleColor = new Color(1.0f, 0.25f, 0.05f),     // Naranja lava incandescente
             cameraBgColor = new Color(0.20f, 0.05f, 0.05f),    // Rojo volcánico
+            lightColor = new Color(1.0f, 0.65f, 0.45f),        // Luz incandescente volcánica
             bannerTextColor = new Color(1.0f, 0.35f, 0.1f)
         },
         // NIVEL 4: Modo Cibernético Extremo (Velocidad x2.1, máxima exigencia)
@@ -85,6 +89,7 @@ public class DifficultyManager3D : MonoBehaviour
             floorColor = new Color(0.04f, 0.20f, 0.15f),       // Verde cibernético
             obstacleColor = new Color(0.0f, 1.0f, 0.6f),       // Neón jade
             cameraBgColor = new Color(0.02f, 0.12f, 0.09f),    // Verde abisal
+            lightColor = new Color(0.6f, 1.0f, 0.85f),         // Luz cibernética neón
             bannerTextColor = new Color(0.2f, 1.0f, 0.5f)
         }
     };
@@ -173,8 +178,12 @@ public class DifficultyManager3D : MonoBehaviour
             playerController.SetSpeedMultiplier(tier.speedMultiplier);
         }
 
-        // 2. Cambiar la atmósfera y color de fondo de la cámara
-        if (mainCamera != null)
+        // 2. Cambiar la atmósfera y color de fondo de la cámara y niebla dinámica (Actividad 4.4)
+        if (LightingAtmosphereManager3D.Instance != null)
+        {
+            LightingAtmosphereManager3D.Instance.SetAtmosphere(tier.cameraBgColor, tier.lightColor);
+        }
+        else if (mainCamera != null)
         {
             mainCamera.backgroundColor = tier.cameraBgColor;
         }

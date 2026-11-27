@@ -215,12 +215,7 @@ public class LevelGenerator3D : MonoBehaviour
 
     private Material CreateDynamicMaterial(string name, Color col)
     {
-        Shader shader = Shader.Find("Standard") ?? Shader.Find("Diffuse");
-        Material mat = new Material(shader);
-        mat.color = col;
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
-        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.4f);
-        return mat;
+        return MaterialHelper3D.CreateSafeMaterial(name, col, 0.35f);
     }
 
     private void RecyclePassedSections()

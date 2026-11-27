@@ -1,76 +1,86 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using UnityEngine.Rendering;
 using System.IO;
+using System.Collections.Generic;
 
 /// <summary>
-/// Asistente de Editor integral para Unity que automatiza el montaje de la escena para las Actividades 4.1, 4.2 y 4.3.
-/// Integra el entorno 3D, personaje físico, cámara cinematográfica, contadores UI,
-/// generador procedimental infinito dinámico (LevelGenerator3D), curva de dificultad real
-/// con cambio de atmósfera, pista, obstáculos, velocidad y banner central (DifficultyManager3D),
-/// y el bucle de juego con panel modal de Game Over y reinicio (GameLoopManager3D).
+/// Asistente de Editor integral para Unity que automatiza el montaje de la escena para las Actividades 4.1, 4.2, 4.3 y 4.4.
+/// Integra iluminación 3D avanzada, sombras suaves, niebla cinemática, sistema de skins personalizables para el jugador,
+/// estela dinámica (TrailRenderer), efectos de partículas procedurales, bucle de juego, niveles procedimentales infinitos
+/// y guardado automático de la escena en Assets/Scenes/MainGame3D.unity.
 /// 
-/// Accesible desde el menú superior: 'Herramientas 3D > Montar Escenario Dinámico e Infinito (Actividad 4.3)'
+/// Accesible desde el menú superior:
+/// 'Herramientas 3D > Montar Escenario Completo (Actividad 4.4 - Iluminación y Mejoras Visuales)'
 /// </summary>
+[InitializeOnLoad]
 public class SetupScene3DHelper : EditorWindow
 {
+    static SetupScene3DHelper()
+    {
+        string pipeName = GraphicsSettings.currentRenderPipeline != null ? GraphicsSettings.currentRenderPipeline.name : "Built-in";
+        Shader safeShader = MaterialHelper3D.GetSafeShader();
+        Debug.Log($"[SetupScene3DHelper] Diagnóstico Gráfico -> Pipeline: {pipeName} | Shader Activo: {safeShader.name}");
+    }
+
+    [MenuItem("Herramientas 3D/Montar Escenario Completo (Actividad 4.4 - Iluminación y Mejoras Visuales)")]
     [MenuItem("Herramientas 3D/Montar Escenario Dinámico e Infinito (Actividad 4.3)")]
     public static void GenerateComplete3DScene()
     {
-        Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.3");
+        Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.4");
 
-        Debug.Log("--- Iniciando montaje completo con Niveles Dinámicos y Bucle de Juego ---");
+        Debug.Log("--- Iniciando montaje completo: Iluminación 3D, Skins, Partículas y Guardado de Escena ---");
 
-        Shader universalShader = ResolveCompatibleShader();
+        // 1. Materiales seguros compatibles con URP y Built-in (Evita color magenta #FF00FF)
+        Material matFloor = CreateOrUpdateMaterial("Mat_Floor_DarkSlate", new Color(0.12f, 0.16f, 0.22f), 0.25f);
+        Material matPlayer = CreateOrUpdateMaterial("Mat_Player_VibrantGold", new Color(1.0f, 0.72f, 0.05f), 0.85f);
+        Material matPlayerBand = CreateOrUpdateMaterial("Mat_Player_Band_Dark", new Color(0.12f, 0.16f, 0.22f), 0.90f);
+        Material matRamp = CreateOrUpdateMaterial("Mat_Ramp_ElectricCyan", new Color(0.02f, 0.75f, 0.88f), 0.50f);
+        Material matPlatform = CreateOrUpdateMaterial("Mat_Platform_EmeraldGreen", new Color(0.08f, 0.75f, 0.45f), 0.50f);
+        Material matObstacle = CreateOrUpdateMaterial("Mat_Obstacle_RubyRed", new Color(0.92f, 0.20f, 0.25f), 0.40f);
 
-        Material matFloor = CreateOrUpdateMaterial("Mat_Floor_DarkSlate", universalShader, new Color(0.12f, 0.16f, 0.22f), 0.2f);
-        Material matPlayer = CreateOrUpdateMaterial("Mat_Player_VibrantGold", universalShader, new Color(1.0f, 0.72f, 0.0f), 0.8f);
-        Material matPlayerBand = CreateOrUpdateMaterial("Mat_Player_Band_Dark", universalShader, new Color(0.06f, 0.09f, 0.16f), 0.9f);
-        Material matRamp = CreateOrUpdateMaterial("Mat_Ramp_ElectricCyan", universalShader, new Color(0.02f, 0.75f, 0.88f), 0.5f);
-        Material matPlatform = CreateOrUpdateMaterial("Mat_Platform_EmeraldGreen", universalShader, new Color(0.08f, 0.75f, 0.45f), 0.5f);
-        Material matObstacle = CreateOrUpdateMaterial("Mat_Obstacle_RubyRed", universalShader, new Color(0.92f, 0.20f, 0.25f), 0.4f);
+        // 2. Iluminación y atmósfera cinemática
+        Light dirLight = SetupLighting();
 
-        SetupLighting();
-
+        // 3. Entorno geométrico inicial
         GameObject groundParent = SetupEnvironment(matFloor, matRamp, matPlatform, matObstacle);
 
+        // 4. Personaje físico con personalizador visual (Criterio 2)
         GameObject player = SetupPlayer(matPlayer, matPlayerBand);
 
+        // 5. Cámara seguidora y atmósfera de fondo (Criterio 1)
         SetupCamera(player.transform);
 
-        SetupGameManagers(player.GetComponent<PlayerController3D>());
+        // 6. Luz de apoyo y halo luminoso sobre el jugador
+        Light glowLight = SetupPlayerGlowLight(player.transform);
 
+        // 7. Gestores del bucle de juego, puntuación, niveles e iluminación
+        SetupGameManagers(player.GetComponent<PlayerController3D>(), dirLight, glowLight);
+
+        // 8. Interfaz UI con botones táctiles, HUD, modal Game Over y selector interactivo de Skins
         SetupMobileUI(player.GetComponent<PlayerController3D>());
 
-        EditorUtility.DisplayDialog("Montaje de Actividad 4.3 Concluido", 
-            "¡El proyecto 3D ha sido configurado con éxito para la Actividad 4.3!\n\n" +
-            "✓ Niveles Dinámicos Reales: Cada nivel cambia el color de pista, color de obstáculos y atmósfera de la cámara.\n" +
-            "✓ Progresión Visible: La velocidad del jugador se acelera perceptiblemente (+40% en Nivel 2, +75% en Nivel 3).\n" +
-            "✓ Banner Central de Subida de Nivel: Al ascender de nivel, un cartel central anuncia el nuevo mundo.\n" +
-            "✓ Tramos con Salto en Niveles Avanzados: En nivel 3 y 4 se generan abismos que exigen usar el botón de SALTO.\n" +
-            "✓ Bucle de Juego: Game Over al colisionar o caer al vacío con botón Reintentar instantáneo.\n\n" +
-            "Presiona Play (▶) para probar la progresión entre niveles.", 
+        // 9. Guardar la escena permanentemente en Assets/Scenes/MainGame3D.unity
+        SaveAndRegisterScene();
+
+        EditorUtility.DisplayDialog("Montaje de Actividad 4.4 Concluido",
+            "¡El proyecto 3D ha sido configurado con éxito para la Actividad 4.4!\n\n" +
+            "✓ Iluminación y Niebla 3D: Luz direccional calibrada con sombras suaves (Soft Shadows) y niebla volumétrica.\n" +
+            "✓ Color de Fondo Dinámico (Criterio 1): Interpolación fluida (Color.Lerp) de cámara y niebla al avanzar de nivel.\n" +
+            "✓ Personalización del Personaje (Criterio 2): 4 Skins temáticas (Dorado, Neón, Esmeralda, Cyan) con Trail 3D.\n" +
+            "✓ Efectos de Partículas: Destello radial al pulsar SALTO y explosión al chocar con obstáculos.\n" +
+            "✓ Botón de Skin en UI y Tecla 'C': Alterna el aspecto del personaje en tiempo real durante la partida.\n" +
+            "✓ Cero Shaders Magenta: MaterialHelper3D garantiza compatibilidad universal y colores vivos.\n" +
+            "✓ Escena Guardada: La escena ha sido guardada en 'Assets/Scenes/MainGame3D.unity'.\n\n" +
+            "Presiona Play (▶) para disfrutar la experiencia visual 3D.",
             "¡Excelente!");
     }
 
-    private static Shader ResolveCompatibleShader()
-    {
-        if (GraphicsSettings.currentRenderPipeline != null)
-        {
-            Shader urpShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Universal Render Pipeline/Simple Lit");
-            if (urpShader != null) return urpShader;
-        }
-
-        Shader standardShader = Shader.Find("Standard");
-        if (standardShader != null) return standardShader;
-
-        return Shader.Find("Mobile/Diffuse") ?? Shader.Find("Diffuse") ?? Shader.Find("Unlit/Color");
-    }
-
-    private static Material CreateOrUpdateMaterial(string matName, Shader shader, Color color, float smoothness = 0.5f)
+    private static Material CreateOrUpdateMaterial(string matName, Color color, float smoothness = 0.5f)
     {
         string dirPath = "Assets/Materials";
         if (!Directory.Exists(dirPath))
@@ -80,21 +90,23 @@ public class SetupScene3DHelper : EditorWindow
 
         string assetPath = $"{dirPath}/{matName}.mat";
         Material mat = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+        Shader safeShader = MaterialHelper3D.GetSafeShader();
+
         if (mat == null)
         {
-            mat = new Material(shader);
+            mat = new Material(safeShader);
+            mat.name = matName;
             AssetDatabase.CreateAsset(mat, assetPath);
         }
         else
         {
-            mat.shader = shader;
+            mat.shader = safeShader;
         }
 
-        mat.color = color;
-        if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
-        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
+        MaterialHelper3D.ApplyColorToMaterial(mat, color);
+
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+        if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
 
         EditorUtility.SetDirty(mat);
         AssetDatabase.SaveAssets();
@@ -102,7 +114,7 @@ public class SetupScene3DHelper : EditorWindow
         return mat;
     }
 
-    private static void SetupLighting()
+    private static Light SetupLighting()
     {
         Light dirLight = Object.FindFirstObjectByType<Light>();
         if (dirLight == null || dirLight.type != LightType.Directional)
@@ -112,10 +124,44 @@ public class SetupScene3DHelper : EditorWindow
             dirLight.type = LightType.Directional;
             lightObj.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
         }
+
         dirLight.color = new Color(1.0f, 0.98f, 0.92f);
-        dirLight.intensity = 1.15f;
+        dirLight.intensity = 1.20f;
         dirLight.shadows = LightShadows.Soft;
+        dirLight.shadowStrength = 0.65f;
+        dirLight.shadowBias = 0.04f;
+        dirLight.shadowNormalBias = 0.4f;
+
+        // Configuración de niebla cinemática global
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.ExponentialSquared;
+        RenderSettings.fogDensity = 0.012f;
+        RenderSettings.fogColor = new Color(0.10f, 0.14f, 0.20f);
         RenderSettings.ambientLight = new Color(0.28f, 0.32f, 0.42f);
+
+        return dirLight;
+    }
+
+    private static Light SetupPlayerGlowLight(Transform playerTransform)
+    {
+        GameObject glowObj = GameObject.Find("PlayerGlowLight");
+        if (glowObj == null)
+        {
+            glowObj = new GameObject("PlayerGlowLight");
+        }
+
+        Light ptLight = glowObj.GetComponent<Light>();
+        if (ptLight == null) ptLight = glowObj.AddComponent<Light>();
+
+        ptLight.type = LightType.Point;
+        ptLight.range = 8.0f;
+        ptLight.intensity = 1.35f;
+        ptLight.color = new Color(1.0f, 0.85f, 0.30f);
+        ptLight.shadows = LightShadows.None;
+
+        glowObj.transform.position = playerTransform.position + new Vector3(0f, 1.2f, 0f);
+
+        return ptLight;
     }
 
     private static GameObject SetupEnvironment(Material floorMat, Material rampMat, Material platMat, Material obsMat)
@@ -174,7 +220,7 @@ public class SetupScene3DHelper : EditorWindow
         player.GetComponent<Renderer>().sharedMaterial = playerMat;
 
         GameObject band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        band.name = "Ball_RotationBand";
+        band.name = "Player_Band";
         band.transform.SetParent(player.transform, false);
         band.transform.localPosition = Vector3.zero;
         band.transform.localScale = new Vector3(1.02f, 0.08f, 1.02f);
@@ -190,6 +236,10 @@ public class SetupScene3DHelper : EditorWindow
 
         PlayerController3D controller = player.GetComponent<PlayerController3D>();
         if (controller == null) controller = player.AddComponent<PlayerController3D>();
+
+        // Personalizador visual del personaje y partículas (Criterio 2)
+        PlayerVisualCustomizer3D customizer = player.GetComponent<PlayerVisualCustomizer3D>();
+        if (customizer == null) customizer = player.AddComponent<PlayerVisualCustomizer3D>();
 
         return player;
     }
@@ -225,7 +275,7 @@ public class SetupScene3DHelper : EditorWindow
         mainCam.transform.LookAt(playerTransform.position + Vector3.up * 0.4f);
     }
 
-    private static void SetupGameManagers(PlayerController3D controller)
+    private static void SetupGameManagers(PlayerController3D controller, Light dirLight, Light glowLight)
     {
         GameObject gmObj = GameObject.Find("GameManagers_3D");
         if (gmObj == null)
@@ -255,6 +305,16 @@ public class SetupScene3DHelper : EditorWindow
         soGl.FindProperty("playerTransform").objectReferenceValue = controller.transform;
         soGl.FindProperty("fallThresholdY").floatValue = -4.0f;
         soGl.ApplyModifiedProperties();
+
+        // Gestor de Iluminación y Atmósfera (Criterio 1)
+        LightingAtmosphereManager3D lightMgr = gmObj.GetComponent<LightingAtmosphereManager3D>();
+        if (lightMgr == null) lightMgr = gmObj.AddComponent<LightingAtmosphereManager3D>();
+        SerializedObject soLm = new SerializedObject(lightMgr);
+        soLm.FindProperty("targetCamera").objectReferenceValue = Camera.main;
+        soLm.FindProperty("mainDirectionalLight").objectReferenceValue = dirLight;
+        soLm.FindProperty("playerGlowLight").objectReferenceValue = glowLight;
+        soLm.FindProperty("playerTransform").objectReferenceValue = controller.transform;
+        soLm.ApplyModifiedProperties();
     }
 
     private static void SetupMobileUI(PlayerController3D controller)
@@ -300,9 +360,24 @@ public class SetupScene3DHelper : EditorWindow
         rtHud.anchoredPosition = new Vector2(0f, -20f);
         rtHud.sizeDelta = new Vector2(-40f, 100f);
 
-        Text txtScore = CreateHeaderText(hudPanelObj.transform, "Txt_CurrentScore", "Puntos: 0", new Vector2(200f, -30f), 38, Color.white, TextAnchor.MiddleLeft);
-        Text txtHighScore = CreateHeaderText(hudPanelObj.transform, "Txt_HighScore", "Récord: 0", new Vector2(0f, -30f), 32, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
-        Text txtDiff = CreateHeaderText(hudPanelObj.transform, "Txt_Difficulty", "NIVEL 1: ZONA AZUL", new Vector2(-220f, -30f), 30, new Color(0.3f, 0.85f, 1.0f), TextAnchor.MiddleRight);
+        Text txtScore = CreateHeaderText(hudPanelObj.transform, "Txt_CurrentScore", "Puntos: 0", new Vector2(200f, -30f), 36, Color.white, TextAnchor.MiddleLeft);
+        Text txtHighScore = CreateHeaderText(hudPanelObj.transform, "Txt_HighScore", "Récord: 0", new Vector2(-30f, -30f), 30, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
+        Text txtDiff = CreateHeaderText(hudPanelObj.transform, "Txt_Difficulty", "NIVEL 1: ZONA AZUL", new Vector2(-280f, -30f), 28, new Color(0.3f, 0.85f, 1.0f), TextAnchor.MiddleRight);
+
+        // Botón interactivo para alternar Skin del personaje (Criterio 2)
+        GameObject btnSkinObj = CreateSimpleButton(hudPanelObj.transform, "Btn_SkinSelector", "🎨 SKIN: DORADO (C)", new Vector2(0f, -80f), new Vector2(300f, 50f), new Color(0.95f, 0.65f, 0.05f, 0.90f));
+        Button btnSkin = btnSkinObj.GetComponent<Button>();
+        Text txtSkinBtn = btnSkinObj.GetComponentInChildren<Text>();
+        txtSkinBtn.fontSize = 20;
+
+        PlayerVisualCustomizer3D customizer = controller.GetComponent<PlayerVisualCustomizer3D>();
+        if (customizer != null)
+        {
+            btnSkin.onClick.AddListener(customizer.CycleNextSkin);
+            SerializedObject soC = new SerializedObject(customizer);
+            soC.FindProperty("skinButtonText").objectReferenceValue = txtSkinBtn;
+            soC.ApplyModifiedProperties();
+        }
 
         // 2. Banner Central de Subida de Nivel
         Transform bannerPanel = canvasObj.transform.Find("Banner_LevelUpPanel");
@@ -316,11 +391,11 @@ public class SetupScene3DHelper : EditorWindow
         bannerObj.GetComponent<Image>().color = new Color(0.05f, 0.08f, 0.15f, 0.92f);
 
         Text txtBannerTitle = CreateHeaderText(bannerObj.transform, "Txt_BannerTitle", "★ ¡NIVEL 2: ZONA PÚRPURA! ★", new Vector2(0f, 30f), 38, Color.yellow, TextAnchor.MiddleCenter);
-        Text txtBannerSubtitle = CreateHeaderText(bannerObj.transform, "Txt_BannerSubtitle", "¡Velocidad aumentada a x1.40! Nuevos obstáculos activados.", new Vector2(0f, -30f), 24, Color.white, TextAnchor.MiddleCenter);
+        Text txtBannerSubtitle = CreateHeaderText(bannerObj.transform, "Txt_BannerSubtitle", "¡Velocidad x1.40! Nueva atmósfera e iluminación.", new Vector2(0f, -30f), 24, Color.white, TextAnchor.MiddleCenter);
 
-        bannerObj.SetActive(false); // Oculto al inicio
+        bannerObj.SetActive(false);
 
-        // 3. Panel Modal de Game Over (Bucle de Juego)
+        // 3. Panel Modal de Game Over
         Transform goPanel = canvasObj.transform.Find("Modal_GameOverPanel");
         if (goPanel != null) DestroyImmediate(goPanel.gameObject);
 
@@ -419,7 +494,44 @@ public class SetupScene3DHelper : EditorWindow
         Vector2 jumpPos = new Vector2(-160, 160);
         CreateTouchButton(controlsPanel, "Btn_Jump", "SALTO\n▲", jumpPos, new Vector2(1, 0), new Vector2(1, 0), VirtualTouchButton.ButtonDirection.Jump, controller, new Vector2(170, 170), jumpBtnColor);
 
-        Debug.Log("[SetupScene3DHelper] UI móvil generada con HUD, Banner de Nivel, Modal Game Over y Controles.");
+        Debug.Log("[SetupScene3DHelper] UI móvil generada con HUD, Selector de Skin, Banner de Nivel, Modal Game Over y Controles.");
+    }
+
+    private static void SaveAndRegisterScene()
+    {
+        string scenesDir = "Assets/Scenes";
+        if (!Directory.Exists(scenesDir))
+        {
+            Directory.CreateDirectory(scenesDir);
+        }
+
+        string scenePath = $"{scenesDir}/MainGame3D.unity";
+        UnityEngine.SceneManagement.Scene activeScene = EditorSceneManager.GetActiveScene();
+
+        EditorSceneManager.SaveScene(activeScene, scenePath);
+        Debug.Log($"[SetupScene3DHelper] Escena guardada con éxito en: {scenePath}");
+
+        // Registrar en EditorBuildSettings si no está añadida
+        List<EditorBuildSettingsScene> buildScenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+        bool alreadyAdded = false;
+        foreach (var bs in buildScenes)
+        {
+            if (bs.path == scenePath)
+            {
+                alreadyAdded = true;
+                break;
+            }
+        }
+
+        if (!alreadyAdded)
+        {
+            buildScenes.Add(new EditorBuildSettingsScene(scenePath, true));
+            EditorBuildSettings.scenes = buildScenes.ToArray();
+            Debug.Log($"[SetupScene3DHelper] Escena '{scenePath}' registrada en Build Settings.");
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
     }
 
     private static GameObject CreateSimpleButton(Transform parent, string name, string label, Vector2 pos, Vector2 size, Color bgColor)
@@ -445,7 +557,7 @@ public class SetupScene3DHelper : EditorWindow
         Text txt = txtObj.GetComponent<Text>();
         txt.text = label;
         txt.alignment = TextAnchor.MiddleCenter;
-        txt.fontSize = 26;
+        txt.fontSize = 24;
         txt.fontStyle = FontStyle.Bold;
         txt.color = Color.white;
         txt.raycastTarget = false;

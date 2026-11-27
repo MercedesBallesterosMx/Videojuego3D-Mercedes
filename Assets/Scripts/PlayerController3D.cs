@@ -117,6 +117,13 @@ public class PlayerController3D : MonoBehaviour
             jumpBufferTimer = 0f;
             coyoteTimer = 0f;
             isGrounded = false;
+
+            // Efecto visual de partículas al saltar (Actividad 4.4)
+            if (PlayerVisualCustomizer3D.Instance != null)
+            {
+                PlayerVisualCustomizer3D.Instance.PlayJumpParticles();
+            }
+
             Debug.Log("[PlayerController3D] ¡Salto en Eje Y ejecutado exitosamente!");
         }
         else if (!isGrounded && currentYVelocity < 0)

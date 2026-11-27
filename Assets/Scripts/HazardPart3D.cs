@@ -37,6 +37,12 @@ public class HazardPart3D : MonoBehaviour
     {
         Debug.Log($"[HazardPart3D] Jugador impactó contra la zona letal: {gameObject.name}");
 
+        // Efecto visual de explosión de partículas de derrota (Actividad 4.4)
+        if (PlayerVisualCustomizer3D.Instance != null)
+        {
+            PlayerVisualCustomizer3D.Instance.PlayDeathParticles();
+        }
+
         if (GameLoopManager3D.Instance != null)
         {
             GameLoopManager3D.Instance.TriggerGameOver();
