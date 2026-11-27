@@ -321,7 +321,7 @@ public class ProjectIntegratorSetupPI : EditorWindow
         LightingAtmosphereManager3D lam = gmObj.AddComponent<LightingAtmosphereManager3D>();
         LevelProgressController3D lpc = gmObj.AddComponent<LevelProgressController3D>();
 
-        if (Object.FindFirstObjectByType<NavigationManager3D>() == null)
+        if (Object.FindAnyObjectByType<NavigationManager3D>() == null)
         {
             new GameObject("NavigationManager", typeof(NavigationManager3D));
         }
@@ -453,7 +453,7 @@ public class ProjectIntegratorSetupPI : EditorWindow
 
         var scene = EditorSceneManager.OpenScene(menuPath, OpenSceneMode.Single);
 
-        MainMenuUI3D menuUI = Object.FindFirstObjectByType<MainMenuUI3D>();
+        MainMenuUI3D menuUI = Object.FindAnyObjectByType<MainMenuUI3D>();
         if (menuUI == null)
         {
             Debug.LogError("[PI] No se encontró el componente MainMenuUI3D en la escena.");
@@ -608,7 +608,7 @@ public class ProjectIntegratorSetupPI : EditorWindow
             }
 
             Debug.Log($"[PI] Comprimiendo compilación en '{targetZipFile}'...");
-            ZipFile.CreateFromDirectory(sourceDirectory, targetZipFile, CompressionLevel.Optimal, false);
+            ZipFile.CreateFromDirectory(sourceDirectory, targetZipFile, System.IO.Compression.CompressionLevel.Optimal, false);
             FileInfo zipInfo = new FileInfo(targetZipFile);
             Debug.Log($"[PI] ¡Empaquetado ZIP completado! Tamaño: {zipInfo.Length / (1024f * 1024f):F2} MB en: {targetZipFile}");
         }
@@ -674,7 +674,7 @@ public class ProjectIntegratorSetupPI : EditorWindow
 
     private static void EnsureEventSystem()
     {
-        if (Object.FindFirstObjectByType<EventSystem>() == null)
+        if (Object.FindAnyObjectByType<EventSystem>() == null)
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
         }
