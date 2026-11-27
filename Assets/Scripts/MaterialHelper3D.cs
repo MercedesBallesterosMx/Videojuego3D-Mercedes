@@ -12,8 +12,8 @@ public static class MaterialHelper3D
 
     /// <summary>
     /// Resuelve de forma infalible un Shader compatible con el proyecto actual.
-    /// Primero consulta el shader que Unity asigna nativamente a un primitivo (Universal Lit en URP o Standard en Built-in).
-    /// Si no está disponible, prueba secuencialmente los shaders estándar de la industria.
+    /// Prioriza 'Universal Render Pipeline/Lit' para proyectos URP (estándar en Unity 6),
+    /// asegurando que ningún objeto renderice con el color magenta de error (#FF00FF).
     /// </summary>
     public static Shader GetSafeShader()
     {
@@ -22,20 +22,53 @@ public static class MaterialHelper3D
             return s_CachedSafeShader;
         }
 
-        // 1. Método infalible: Consultar el shader que Unity asigna por defecto a un primitivo en el pipeline activo
+        // 1. En Unity 6 y proyectos modernos con URP, buscar prioritariamente los shaders de Universal RP
+        string[] urpCandidates = new string[]
+        {
+            "Universal Render Pipeline/Lit",
+            "Universal Render Pipeline/Simple Lit",
+            "Universal Render Pipeline/Unlit"
+        };
+
+        foreach (string candidate in urpCandidates)
+        {
+            Shader found = Shader.Find(candidate);
+            if (found != null && found.isSupported)
+            {
+                s_CachedSafeShader = found;
+                return s_CachedSafeShader;
+            }
+        }
+
+        // Si se encontraron pero isSupported no devolvió true (contexto de importación), usar el primer URP Lit disponible
+        foreach (string candidate in urpCandidates)
+        {
+            Shader found = Shader.Find(candidate);
+            if (found != null)
+            {
+                s_CachedSafeShader = found;
+                return s_CachedSafeShader;
+            }
+        }
+
+        // 2. Si no es URP, consultar primitivo por defecto de Unity
         try
         {
             GameObject tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Renderer r = tempPrimitive.GetComponent<Renderer>();
             if (r != null && r.sharedMaterial != null && r.sharedMaterial.shader != null)
             {
-                s_CachedSafeShader = r.sharedMaterial.shader;
+                Shader primShader = r.sharedMaterial.shader;
+                if (!primShader.name.Contains("InternalErrorShader"))
+                {
+                    s_CachedSafeShader = primShader;
+                }
             }
             Object.DestroyImmediate(tempPrimitive);
         }
         catch
         {
-            // Fallback si CreatePrimitive fallase en entornos sin simulación
+            // Ignorar fallos de CreatePrimitive en contextos sin simulación
         }
 
         if (s_CachedSafeShader != null)
@@ -43,12 +76,9 @@ public static class MaterialHelper3D
             return s_CachedSafeShader;
         }
 
-        // 2. Si no se obtuvo mediante el primitivo, buscar candidatos por orden de prioridad técnica
-        string[] candidates = new string[]
+        // 3. Fallbacks para Built-in Render Pipeline clásico
+        string[] builtInCandidates = new string[]
         {
-            "Universal Render Pipeline/Lit",
-            "Universal Render Pipeline/Simple Lit",
-            "Universal Render Pipeline/Unlit",
             "Standard",
             "Mobile/Diffuse",
             "Legacy Shaders/Diffuse",
@@ -56,17 +86,16 @@ public static class MaterialHelper3D
             "UI/Default"
         };
 
-        foreach (string candidate in candidates)
+        foreach (string candidate in builtInCandidates)
         {
-            Shader foundShader = Shader.Find(candidate);
-            if (foundShader != null)
+            Shader found = Shader.Find(candidate);
+            if (found != null)
             {
-                s_CachedSafeShader = foundShader;
+                s_CachedSafeShader = found;
                 return s_CachedSafeShader;
             }
         }
 
-        // 3. Último recurso interno
         s_CachedSafeShader = Shader.Find("Hidden/InternalErrorShader");
         return s_CachedSafeShader;
     }
@@ -86,6 +115,7 @@ public static class MaterialHelper3D
         // Suavidad superficial (Smoothness / Glossiness)
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
         if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
+        if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
 
         return mat;
     }

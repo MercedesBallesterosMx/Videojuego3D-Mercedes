@@ -33,6 +33,11 @@ public class LevelProgressController3D : MonoBehaviour
     [SerializeField] private Button nextLevelButton;
     [SerializeField] private Button mainMenuButton;
 
+    [Header("Feedback de Súper Velocidad (UX / Actividad 4.6)")]
+    [SerializeField] private GameObject speedBoostBanner;
+    [SerializeField] private Text speedBoostText;
+    private Coroutine boostBannerCoroutine;
+
     private bool levelCompleted = false;
 
     private void Awake()
@@ -172,4 +177,31 @@ public class LevelProgressController3D : MonoBehaviour
             }
         }
     }
+
+    #region Feedback de Súper Velocidad (UX - Actividad 4.6)
+    /// <summary>
+    /// Despliega una notificación visual de Súper Velocidad en la interfaz móvil durante la duración del boost (máx 3s).
+    /// </summary>
+    public void ShowSpeedBoostBanner(float duration, float multiplier)
+    {
+        if (speedBoostBanner == null && speedBoostText == null) return;
+
+        if (boostBannerCoroutine != null)
+        {
+            StopCoroutine(boostBannerCoroutine);
+        }
+        boostBannerCoroutine = StartCoroutine(SpeedBoostBannerRoutine(duration, multiplier));
+    }
+
+    private System.Collections.IEnumerator SpeedBoostBannerRoutine(float duration, float multiplier)
+    {
+        if (speedBoostBanner != null) speedBoostBanner.SetActive(true);
+        if (speedBoostText != null) speedBoostText.text = $"★ ¡SÚPER VELOCIDAD x{multiplier:F1}! ★";
+
+        yield return new WaitForSeconds(duration);
+
+        if (speedBoostBanner != null) speedBoostBanner.SetActive(false);
+        boostBannerCoroutine = null;
+    }
+    #endregion
 }

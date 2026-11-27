@@ -2,13 +2,14 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 /// <summary>
 /// Componente de control táctil interactivo en pantalla para UI móvil.
 /// Detecta eventos de pulsación continua (pointer down / up) para simular
 /// botones direccionales analógicos y de acción (salto) sin depender de librerías externas.
 /// 
-/// Cumple con el Criterio 1 de la Actividad 4.1: UI adaptable a móviles.
+/// Cumple con el Criterio 1 de la Actividad 4.1: UI adaptable a móviles con salto 100% responsivo.
 /// </summary>
 public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
 {
@@ -33,18 +34,34 @@ public class VirtualTouchButton : MonoBehaviour, IPointerDownHandler, IPointerUp
     private void Awake()
     {
         FindController();
+        SetupButtonClickListener();
     }
 
     private void Start()
     {
         FindController();
+        SetupButtonClickListener();
+    }
+
+    private void SetupButtonClickListener()
+    {
+        Button btn = GetComponent<Button>();
+        if (btn != null && direction == ButtonDirection.Jump)
+        {
+            btn.onClick.RemoveListener(ExecuteJumpAction);
+            btn.onClick.AddListener(ExecuteJumpAction);
+        }
     }
 
     private void FindController()
     {
         if (playerController == null)
         {
-            playerController = FindFirstObjectByType<PlayerController3D>();
+#if UNITY_6000_0_OR_NEWER
+            playerController = Object.FindAnyObjectByType<PlayerController3D>();
+#else
+            playerController = Object.FindObjectOfType<PlayerController3D>();
+#endif
         }
     }
 

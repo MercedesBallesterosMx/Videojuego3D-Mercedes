@@ -14,6 +14,8 @@ using UnityEngine;
 /// </summary>
 public class CameraFollow3D : MonoBehaviour
 {
+    public static CameraFollow3D Instance { get; private set; }
+
     [Header("Objetivo de Seguimiento")]
     [Tooltip("Transform del personaje principal al que seguirá la cámara.")]
     [SerializeField] private Transform target;
@@ -21,6 +23,10 @@ public class CameraFollow3D : MonoBehaviour
     [Header("Configuración de Desplazamiento (Offsets)")]
     [Tooltip("Distancia relativa (Offset) respecto al personaje. X: lateral, Y: elevación, Z: profundidad.")]
     [SerializeField] private Vector3 offset = new Vector3(0f, 5.5f, -9.0f);
+
+    [Header("Game Feel / Súper Velocidad (Actividad 4.6 - FOV Kick)")]
+    [SerializeField] private float normalFOV = 60f;
+    [SerializeField] private float boostFOV = 74f;
 
     [Header("Criterio 3 y 4: Cinemática y Restricciones de Ejes")]
     [Tooltip("Tiempo de amortiguamiento para evitar sacudidas y vibraciones bruscas en pantallas móviles.")]
@@ -44,6 +50,15 @@ public class CameraFollow3D : MonoBehaviour
     // Variables internas de suavizado
     private Vector3 currentVelocity = Vector3.zero;
     private float fixedBaseY;
+    private Camera camComponent;
+    private Coroutine fovCoroutine;
+
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+        camComponent = GetComponent<Camera>();
+        if (camComponent != null) normalFOV = camComponent.fieldOfView;
+    }
 
     private void Start()
     {
@@ -137,4 +152,44 @@ public class CameraFollow3D : MonoBehaviour
             fixedBaseY = target.position.y + offset.y;
         }
     }
+
+    #region Game Feel (Actividad 4.6 - FOV Kick)
+    /// <summary>
+    /// Dispara un efecto cinemático de aceleración dinámica abriendo el campo de visión (FOV).
+    /// </summary>
+    public void TriggerSpeedKick(float duration)
+    {
+        if (camComponent == null) return;
+        if (fovCoroutine != null) StopCoroutine(fovCoroutine);
+        fovCoroutine = StartCoroutine(FovKickRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator FovKickRoutine(float duration)
+    {
+        float elapsed = 0f;
+
+        // 1. Abrir FOV rápidamente para impacto cinestésico
+        while (elapsed < 0.25f)
+        {
+            elapsed += Time.deltaTime;
+            camComponent.fieldOfView = Mathf.Lerp(normalFOV, boostFOV, elapsed / 0.25f);
+            yield return null;
+        }
+        camComponent.fieldOfView = boostFOV;
+
+        // 2. Mantener FOV alto mientras dure la Súper Velocidad (máx 3 s)
+        yield return new WaitForSeconds(Mathf.Max(0f, duration - 0.65f));
+
+        // 3. Regresar suavemente al FOV nominal
+        elapsed = 0f;
+        while (elapsed < 0.4f)
+        {
+            elapsed += Time.deltaTime;
+            camComponent.fieldOfView = Mathf.Lerp(boostFOV, normalFOV, elapsed / 0.4f);
+            yield return null;
+        }
+        camComponent.fieldOfView = normalFOV;
+        fovCoroutine = null;
+    }
+    #endregion
 }

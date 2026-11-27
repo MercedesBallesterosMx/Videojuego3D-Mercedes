@@ -8,19 +8,20 @@ using System.IO;
 using System.Collections.Generic;
 
 /// <summary>
-/// Asistente de Editor integral para la Actividad 4.5: Interfaz y Navegación.
-/// Automatiza la creación, diseño y guardado de las 3 escenas fundamentales:
+/// Asistente de Editor integral para las Actividades 4.5 (Interfaz y Navegación) y 4.6 (UX y Game Feel).
+/// Automatiza la creación, diseño, potenciadores de velocidad y guardado de las 3 escenas fundamentales:
 /// 1. 'MainMenu3D.unity': Menú principal con Play, Selector de Niveles, Instrucciones y Salir.
-/// 2. 'Level_01.unity': Primer nivel jugable (Zona Azul) con barra de progreso, portal de meta y modal de Nivel Completado.
-/// 3. 'Level_02.unity': Segundo nivel consecutivo (Zona Púrpura) con mayor velocidad, abismos y pantalla de Victoria Total.
+/// 2. 'Level_01.unity': Primer nivel jugable con Boost Pads de Súper Velocidad, barra de progreso y portal de meta.
+/// 3. 'Level_02.unity': Segundo nivel consecutivo con velocidad incrementada, abismos y pantalla de Victoria Total.
 /// Configura automáticamente las 3 escenas en 'EditorBuildSettings' para navegación limpia con SceneManager.
 /// </summary>
 public class SetupScenes45Helper : EditorWindow
 {
+    [MenuItem("Herramientas 3D/Montar Sistema Completo y UX (Actividad 4.6)")]
     [MenuItem("Herramientas 3D/Montar Sistema de Interfaz y Navegación (Actividad 4.5)")]
     public static void GenerateCompleteNavigationSystem()
     {
-        Debug.Log("--- Iniciando generación de Interfaz y Navegación Multi-Escena (Actividad 4.5) ---");
+        Debug.Log("--- Iniciando generación de Sistema Completo de Interfaz, Navegación y UX (Actividades 4.5 y 4.6) ---");
 
         string scenesDir = "Assets/Scenes";
         if (!Directory.Exists(scenesDir)) Directory.CreateDirectory(scenesDir);
@@ -28,10 +29,10 @@ public class SetupScenes45Helper : EditorWindow
         // 1. Construir y guardar Escena: MainMenu3D
         BuildMainMenuScene($"{scenesDir}/MainMenu3D.unity");
 
-        // 2. Construir y guardar Escena: Level_01
+        // 2. Construir y guardar Escena: Level_01 (Con potenciadores de Súper Velocidad)
         BuildLevelScene($"{scenesDir}/Level_01.unity", 1, 150f, false, new Color(0.12f, 0.16f, 0.22f), new Color(0.10f, 0.14f, 0.20f), 1.0f);
 
-        // 3. Construir y guardar Escena: Level_02
+        // 3. Construir y guardar Escena: Level_02 (Con potenciadores y abismos)
         BuildLevelScene($"{scenesDir}/Level_02.unity", 2, 190f, true, new Color(0.22f, 0.10f, 0.35f), new Color(0.15f, 0.08f, 0.25f), 1.45f);
 
         // 4. Registrar formalmente en Build Settings
@@ -45,17 +46,18 @@ public class SetupScenes45Helper : EditorWindow
         // 5. Cargar MainMenu3D para que el usuario comience desde el menú
         EditorSceneManager.OpenScene($"{scenesDir}/MainMenu3D.unity");
 
-        EditorUtility.DisplayDialog("Sistema de Interfaz y Navegación Concluido (Actividad 4.5)",
-            "¡Las interfaces y flujo de navegación han sido configurados exitosamente!\n\n" +
-            "✓ Flujo Mínimo de Dos Niveles Consecutivos (Criterio 1):\n" +
-            "   - 'MainMenu3D' ➔ 'Level_01' (Zona Azul) ➔ 'Level_02' (Zona Púrpura Eléctrica).\n" +
-            "   - Cada nivel cuenta con su Portal de Meta tridimensional y barra de progreso.\n\n" +
-            "✓ Transiciones Limpias con SceneManager (Criterio 2):\n" +
-            "   - Las escenas están registradas en Build Settings (Índices 0, 1, 2).\n" +
-            "   - Cero excepciones de consola al pasar de nivel o volver al menú.\n\n" +
-            "✓ Menú Principal Profesional:\n" +
-            "   - Botón JUGAR, Selector de Nivel (Nivel 1 y 2), Modal de Instrucciones y Salir.\n\n" +
-            "Presiona Play (▶) en Unity para iniciar el recorrido desde el Menú Principal.",
+        EditorUtility.DisplayDialog("Sistema Completo de UX y Navegación Concluido (Actividad 4.6)",
+            "¡El proyecto cuenta con todas las mecánicas de UX, Game Feel y navegación multi-escena!\n\n" +
+            "✓ Súper Velocidad (Criterio 1 - Actividad 4.6):\n" +
+            "   - Potenciadores interactivos (SpeedBoostPickup3D) en la pista multiplican la velocidad x2.0.\n\n" +
+            "✓ Estela TrailRenderer Intensa (Criterio 2 - Actividad 4.6):\n" +
+            "   - Estela expandida al doble y resplandeciente durante exactamente 2.5s (duración ≤ 3 segundos).\n\n" +
+            "✓ Game Feel Cinemático y Ergonomía:\n" +
+            "   - FOV Kick en la cámara y banner de Súper Velocidad en el HUD superior.\n\n" +
+            "✓ Flujo Mínimo de Dos Niveles Consecutivos (Actividad 4.5):\n" +
+            "   - 'MainMenu3D' ➔ 'Level_01' (Zona Azul) ➔ 'Level_02' (Zona Púrpura).\n" +
+            "   - Transiciones limpias con SceneManager registradas en Build Settings.\n\n" +
+            "Presiona Play (▶) en Unity para iniciar desde el Menú Principal.",
             "¡Excelente!");
     }
 
@@ -69,7 +71,7 @@ public class SetupScenes45Helper : EditorWindow
         camObj.tag = "MainCamera";
         Camera cam = camObj.GetComponent<Camera>();
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.06f, 0.09f, 0.15f); // Azul medianoche profundo
+        cam.backgroundColor = new Color(0.06f, 0.09f, 0.15f);
         camObj.transform.position = new Vector3(0f, 3.5f, -6f);
         camObj.transform.rotation = Quaternion.Euler(22f, 0f, 0f);
 
@@ -140,10 +142,11 @@ public class SetupScenes45Helper : EditorWindow
         GameObject pnlInstructions = CreateModalPanel(canvasObj.transform, "Modal_Instructions", "INSTRUCCIONES DE JUEGO", new Vector2(750f, 520f));
         string instText = "• D-PAD TÁCTIL / TECLAS WASD:\n  Controla la aceleración y dirección del orbe 3D.\n\n" +
                           "• BOTÓN SALTO ▲ / BARRA ESPACIADORA:\n  Ejecuta saltos para librar abismos y obstáculos letales.\n\n" +
+                          "• POTENCIADORES DE SÚPER VELOCIDAD:\n  Recoge las cápsulas de energía para acelerar x2 con estela de fuego (2.5s).\n\n" +
                           "• BOTÓN DE SKIN / TECLA 'C':\n  Alterna en tiempo real entre las 4 skins disponibles.\n\n" +
                           "• META DEL NIVEL:\n  Avanza hasta cruzar el Portal de Meta para completar la fase.";
-        CreateText(pnlInstructions.transform, "Txt_Content", instText, new Vector2(0f, 20f), new Vector2(680f, 300f), 22, Color.white, TextAnchor.MiddleLeft);
-        GameObject btnCloseInst = CreateButton(pnlInstructions.transform, "Btn_CloseInst", "ENTENDIDO ✓", new Vector2(0f, -195f), new Vector2(250f, 55f), new Color(0.10f, 0.65f, 0.40f), 24);
+        CreateText(pnlInstructions.transform, "Txt_Content", instText, new Vector2(0f, 20f), new Vector2(680f, 320f), 21, Color.white, TextAnchor.MiddleLeft);
+        GameObject btnCloseInst = CreateButton(pnlInstructions.transform, "Btn_CloseInst", "ENTENDIDO ✓", new Vector2(0f, -200f), new Vector2(250f, 55f), new Color(0.10f, 0.65f, 0.40f), 24);
         pnlInstructions.SetActive(false);
 
         // Conectar referencias en MainMenuUI3D
@@ -180,6 +183,9 @@ public class SetupScenes45Helper : EditorWindow
         Material matGoal = MaterialHelper3D.CreateSafeMaterial("Mat_Goal_Portal", new Color(1.0f, 0.85f, 0.1f), 0.95f);
         MaterialHelper3D.ApplyEmissionToMaterial(matGoal, new Color(1.0f, 0.75f, 0.1f));
 
+        Material matBoost = MaterialHelper3D.CreateSafeMaterial("Mat_SpeedBoost_Energy", new Color(1.0f, 0.90f, 0.10f), 0.9f);
+        MaterialHelper3D.ApplyEmissionToMaterial(matBoost, new Color(1.0f, 0.80f, 0.20f));
+
         // 2. Iluminación y Niebla
         GameObject lightObj = new GameObject("Directional Light", typeof(Light));
         Light dirLight = lightObj.GetComponent<Light>();
@@ -207,6 +213,9 @@ public class SetupScenes45Helper : EditorWindow
         floor1.transform.localScale = new Vector3(trackWidth, 1f, 75f);
         floor1.GetComponent<Renderer>().sharedMaterial = matFloor;
 
+        // Potenciador de Súper Velocidad 1 (Actividad 4.6 UX)
+        CreateSpeedBoostPickup(trackParent.transform, new Vector3(0f, 0.9f, 28f), matBoost);
+
         // Rampa de elevación intermedia
         GameObject ramp1 = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ramp1.name = "Ramp_Elevation";
@@ -227,7 +236,7 @@ public class SetupScenes45Helper : EditorWindow
         obs1.AddComponent<HazardPart3D>();
 
         // Tramo 2: Zona media (con abismo en Nivel 2)
-        float startZ2 = levelNum == 1 ? 75f : 88f; // En Nivel 2 hay un abismo de salto entre 72.5 y 88
+        float startZ2 = levelNum == 1 ? 75f : 88f;
         float len2 = 55f;
         GameObject floor2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor2.name = "Floor_Section_2";
@@ -235,6 +244,10 @@ public class SetupScenes45Helper : EditorWindow
         floor2.transform.position = new Vector3(0f, -0.5f, startZ2 + len2 * 0.5f);
         floor2.transform.localScale = new Vector3(trackWidth, 1f, len2);
         floor2.GetComponent<Renderer>().sharedMaterial = matFloor;
+
+        // Potenciador de Súper Velocidad 2 (Actividad 4.6 UX)
+        float boost2Z = levelNum == 1 ? 95f : 115f;
+        CreateSpeedBoostPickup(trackParent.transform, new Vector3(0f, 0.9f, boost2Z), matBoost);
 
         // Obstáculo en tramo 2
         GameObject obs2 = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -260,7 +273,6 @@ public class SetupScenes45Helper : EditorWindow
         GameObject goalObj = new GameObject("Goal_Portal_3D");
         goalObj.transform.position = new Vector3(0f, 1.8f, goalDistance);
 
-        // Anillo de portal
         GameObject archTorus = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         archTorus.name = "Portal_Ring";
         archTorus.transform.SetParent(goalObj.transform, false);
@@ -269,7 +281,6 @@ public class SetupScenes45Helper : EditorWindow
         archTorus.GetComponent<Renderer>().sharedMaterial = matGoal;
         Object.DestroyImmediate(archTorus.GetComponent<Collider>());
 
-        // Trigger físico
         BoxCollider goalCol = goalObj.AddComponent<BoxCollider>();
         goalCol.isTrigger = true;
         goalCol.size = new Vector3(trackWidth, 5f, 2f);
@@ -334,7 +345,6 @@ public class SetupScenes45Helper : EditorWindow
         LightingAtmosphereManager3D lam = gmObj.AddComponent<LightingAtmosphereManager3D>();
         LevelProgressController3D lpc = gmObj.AddComponent<LevelProgressController3D>();
 
-        // Navigation Manager persistente en caso de iniciar directo
         if (Object.FindFirstObjectByType<NavigationManager3D>() == null)
         {
             new GameObject("NavigationManager", typeof(NavigationManager3D));
@@ -354,6 +364,21 @@ public class SetupScenes45Helper : EditorWindow
         // Marcadores de Puntos y Récord
         Text txtScore = CreateText(canvasObj.transform, "Txt_Score", "Puntos: 0", new Vector2(180f, -30f), new Vector2(280f, 50f), 32, Color.white, TextAnchor.MiddleLeft);
         Text txtHighScore = CreateText(canvasObj.transform, "Txt_HighScore", "Récord: 0", new Vector2(-180f, -30f), new Vector2(280f, 50f), 28, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleRight);
+
+        // Banner Animado de Súper Velocidad (Actividad 4.6 UX)
+        GameObject pnlBoostBanner = CreateModalPanel(canvasObj.transform, "Banner_SpeedBoost", "★ ¡SÚPER VELOCIDAD x2.0! ★", new Vector2(520f, 90f));
+        RectTransform rtBoost = pnlBoostBanner.GetComponent<RectTransform>();
+        rtBoost.anchorMin = new Vector2(0.5f, 1f);
+        rtBoost.anchorMax = new Vector2(0.5f, 1f);
+        rtBoost.pivot = new Vector2(0.5f, 1f);
+        rtBoost.anchoredPosition = new Vector2(0f, -100f);
+        Text txtBoostBanner = pnlBoostBanner.transform.Find("Title")?.GetComponent<Text>();
+        if (txtBoostBanner != null)
+        {
+            txtBoostBanner.fontSize = 28;
+            txtBoostBanner.color = new Color(1.0f, 0.90f, 0.1f);
+        }
+        pnlBoostBanner.SetActive(false);
 
         // Botón de Selector de Skin
         GameObject btnSkinObj = CreateButton(canvasObj.transform, "Btn_SkinSelector", "🎨 SKIN: DORADO (C)", new Vector2(0f, -85f), new Vector2(280f, 45f), new Color(0.95f, 0.65f, 0.05f), 18);
@@ -394,6 +419,8 @@ public class SetupScenes45Helper : EditorWindow
         soLpc.FindProperty("levelCompleteStatsText").objectReferenceValue = txtVicStats;
         soLpc.FindProperty("nextLevelButton").objectReferenceValue = btnNextLvl.GetComponent<Button>();
         soLpc.FindProperty("mainMenuButton").objectReferenceValue = btnMenuVic.GetComponent<Button>();
+        soLpc.FindProperty("speedBoostBanner").objectReferenceValue = pnlBoostBanner;
+        soLpc.FindProperty("speedBoostText").objectReferenceValue = txtBoostBanner;
         soLpc.ApplyModifiedProperties();
 
         SerializedObject soSm = new SerializedObject(sm);
@@ -420,7 +447,24 @@ public class SetupScenes45Helper : EditorWindow
         soLam.ApplyModifiedProperties();
 
         EditorSceneManager.SaveScene(scene, scenePath);
-        Debug.Log($"[SetupScenes45Helper] Escena '{scenePath}' guardada con éxito.");
+        Debug.Log($"[SetupScenes45Helper] Escena '{scenePath}' guardada con éxito con potenciadores de Súper Velocidad (UX).");
+    }
+
+    private static GameObject CreateSpeedBoostPickup(Transform parent, Vector3 pos, Material mat)
+    {
+        GameObject boostObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        boostObj.name = "SpeedBoost_EnergyCapsule";
+        boostObj.transform.SetParent(parent);
+        boostObj.transform.position = pos;
+        boostObj.transform.localScale = new Vector3(1.2f, 0.4f, 1.2f);
+        boostObj.transform.rotation = Quaternion.Euler(45f, 45f, 0f);
+        boostObj.GetComponent<Renderer>().sharedMaterial = mat;
+
+        Collider col = boostObj.GetComponent<Collider>();
+        col.isTrigger = true;
+
+        boostObj.AddComponent<SpeedBoostPickup3D>();
+        return boostObj;
     }
     #endregion
 
@@ -540,7 +584,6 @@ public class SetupScenes45Helper : EditorWindow
 
         Slider slider = sliderObj.GetComponent<Slider>();
 
-        // Fondo del slider
         GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         bgObj.transform.SetParent(sliderObj.transform, false);
         RectTransform rtBg = bgObj.GetComponent<RectTransform>();
@@ -549,7 +592,6 @@ public class SetupScenes45Helper : EditorWindow
         rtBg.sizeDelta = Vector2.zero;
         bgObj.GetComponent<Image>().color = new Color(0.18f, 0.22f, 0.32f);
 
-        // Área de relleno
         GameObject fillArea = new GameObject("Fill Area", typeof(RectTransform));
         fillArea.transform.SetParent(sliderObj.transform, false);
         RectTransform rtFillArea = fillArea.GetComponent<RectTransform>();
@@ -561,7 +603,7 @@ public class SetupScenes45Helper : EditorWindow
         fill.transform.SetParent(fillArea.transform, false);
         RectTransform rtFill = fill.GetComponent<RectTransform>();
         rtFill.sizeDelta = Vector2.zero;
-        fill.GetComponent<Image>().color = new Color(0.08f, 0.75f, 0.45f); // Verde esmeralda de progreso
+        fill.GetComponent<Image>().color = new Color(0.08f, 0.75f, 0.45f);
 
         slider.fillRect = rtFill;
         slider.targetGraphic = bgObj.GetComponent<Image>();

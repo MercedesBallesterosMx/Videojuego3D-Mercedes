@@ -331,6 +331,55 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
         }
     }
 
+    private Coroutine superSpeedTrailCoroutine = null;
+
+    /// <summary>
+    /// Intensifica visualmente la estela (TrailRenderer) durante la Súper Velocidad (Criterio 2 de Moodle 4.6).
+    /// Su duración máxima no excede los 3 segundos.
+    /// </summary>
+    public void EnableSuperSpeedTrail(float duration)
+    {
+        if (superSpeedTrailCoroutine != null)
+        {
+            StopCoroutine(superSpeedTrailCoroutine);
+        }
+        superSpeedTrailCoroutine = StartCoroutine(SuperSpeedTrailRoutine(duration));
+    }
+
+    private System.Collections.IEnumerator SuperSpeedTrailRoutine(float duration)
+    {
+        if (trailRenderer != null)
+        {
+            trailRenderer.startWidth = 1.6f;
+            trailRenderer.time = 0.75f;
+
+            // Gradiente ardiente súper brillante (fuego eléctrico y plasma)
+            Gradient boostGrad = new Gradient();
+            boostGrad.SetKeys(
+                new GradientColorKey[] {
+                    new GradientColorKey(new Color(1f, 0.95f, 0.2f), 0.0f),
+                    new GradientColorKey(new Color(1f, 0.35f, 0.0f), 0.5f),
+                    new GradientColorKey(new Color(0.9f, 0.05f, 0.6f), 1.0f)
+                },
+                new GradientAlphaKey[] {
+                    new GradientAlphaKey(1.0f, 0.0f),
+                    new GradientAlphaKey(0.0f, 1.0f)
+                }
+            );
+            trailRenderer.colorGradient = boostGrad;
+        }
+
+        yield return new WaitForSeconds(duration);
+
+        // Restaurar estela normal de la skin activa
+        if (trailRenderer != null)
+        {
+            trailRenderer.startWidth = 0.8f;
+            trailRenderer.time = 0.45f;
+            ApplySkin(currentSkinIndex);
+        }
+    }
+
     /// <summary>
     /// Emite un estallido expansivo de partículas al colisionar letalmente.
     /// </summary>
