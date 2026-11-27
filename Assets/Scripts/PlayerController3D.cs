@@ -4,15 +4,17 @@ using UnityEngine;
 
 /// <summary>
 /// Controlador físico de movimiento tridimensional para el personaje principal.
-/// Cumple con el Criterio 2 de la Actividad 4.1: Desplazamiento en tres ejes (X, Y, Z).
-/// Integra soporte híbrido para controles táctiles móviles y teclado (WASD / Flechas / Espacio).
+/// Cumple con los Criterios de la Actividad 4.1 y 4.2:
+/// - Desplazamiento tridimensional en tres ejes (X, Y, Z).
+/// - Soporte híbrido para controles táctiles móviles y teclado (WASD / Flechas / Espacio).
+/// - Adaptación de velocidad a la curva de dificultad progresiva (DifficultyManager3D).
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController3D : MonoBehaviour
 {
     [Header("Configuración de Movimiento 3D")]
-    [Tooltip("Velocidad de traslación horizontal y en profundidad (Ejes X y Z).")]
-    [SerializeField] private float moveSpeed = 9.0f;
+    [Tooltip("Velocidad base de traslación horizontal y en profundidad (Ejes X y Z).")]
+    [SerializeField] private float baseMoveSpeed = 9.0f;
 
     [Tooltip("Fuerza del impulso vertical para el salto (Eje Y).")]
     [SerializeField] private float jumpForce = 9.2f;
@@ -20,13 +22,14 @@ public class PlayerController3D : MonoBehaviour
     [Tooltip("Multiplicador de gravedad personalizada para caída responsiva.")]
     [SerializeField] private float gravityMultiplier = 2.0f;
 
-    [Header("Estado de Suelo")]
+    [Header("Estado de Suelo y Físicas")]
     [SerializeField] private bool isGrounded = true;
 
     // Referencias internas
     private Rigidbody rb;
     private SphereCollider sphereCollider;
     private Vector2 mobileInput = Vector2.zero;
+    private float dynamicSpeedMultiplier = 1.0f;
 
     // Salto y amortiguamiento
     private bool jumpRequested = false;
@@ -37,6 +40,7 @@ public class PlayerController3D : MonoBehaviour
 
     // Propiedades públicas de consulta
     public bool IsGrounded => isGrounded;
+    public float EffectiveMoveSpeed => baseMoveSpeed * dynamicSpeedMultiplier;
     public Vector3 CurrentVelocity
     {
         get
@@ -121,7 +125,8 @@ public class PlayerController3D : MonoBehaviour
             currentYVelocity += Physics.gravity.y * (gravityMultiplier - 1f) * Time.fixedDeltaTime;
         }
 
-        Vector3 targetVelocity = new Vector3(moveDir.x * moveSpeed, currentYVelocity, moveDir.z * moveSpeed);
+        float currentSpeed = EffectiveMoveSpeed;
+        Vector3 targetVelocity = new Vector3(moveDir.x * currentSpeed, currentYVelocity, moveDir.z * currentSpeed);
 
 #if UNITY_6000_0_OR_NEWER
         rb.linearVelocity = targetVelocity;
@@ -131,13 +136,20 @@ public class PlayerController3D : MonoBehaviour
     }
 
     /// <summary>
+    /// Ajusta dinámicamente el multiplicador de velocidad conforme avanza la dificultad.
+    /// </summary>
+    public void SetSpeedMultiplier(float multiplier)
+    {
+        dynamicSpeedMultiplier = Mathf.Clamp(multiplier, 0.5f, 3.0f);
+    }
+
+    /// <summary>
     /// Detecta suelo mediante colisiones físicas directas (PhysX Contact Normal).
     /// </summary>
     private void OnCollisionStay(Collision collision)
     {
         foreach (ContactPoint contact in collision.contacts)
         {
-            // Si la normal apunta hacia arriba, estamos parados sobre una superficie
             if (contact.normal.y > 0.35f)
             {
                 isGrounded = true;
@@ -173,7 +185,6 @@ public class PlayerController3D : MonoBehaviour
         float radius = (sphereCollider != null) ? sphereCollider.radius * transform.lossyScale.y : (transform.lossyScale.y * 0.5f);
         float checkDist = radius + 0.3f;
 
-        // Dispara un rayo hacia abajo sin excluir ninguna capa
         if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, checkDist))
         {
             if (hit.collider != null && hit.collider.gameObject != gameObject && hit.normal.y > 0.35f)

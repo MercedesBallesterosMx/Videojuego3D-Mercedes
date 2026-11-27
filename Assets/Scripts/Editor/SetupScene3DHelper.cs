@@ -7,26 +7,26 @@ using UnityEngine.Rendering;
 using System.IO;
 
 /// <summary>
-/// Asistente de Editor para Unity que automatiza el montaje completo de la escena 3D.
-/// Resuelve definitivamente el problema de compatibilidad de shaders (evita el magenta/rosa),
-/// genera materiales Standard compatibles con el render pipeline activo y asegura que
-/// la esfera del jugador sea brillante, nítida y perfectamente visible con rotación 3D.
+/// Asistente de Editor para Unity que automatiza el montaje de la escena para las Actividades 4.1 y 4.2.
+/// Genera el entorno 3D, el personaje físico, la cámara cinematográfica,
+/// el contador visual de puntuación (Score), la persistencia (HighScore con PlayerPrefs),
+/// la curva de dificultad progresiva y los obstáculos móviles dinámicos.
 /// 
-/// Accesible desde el menú superior de Unity: 'Herramientas 3D > Montar Escenario y Controles 3D (Actividad 4.1)'
+/// Accesible desde el menú superior: 'Herramientas 3D > Montar Escenario 3D Completo (Actividad 4.1 y 4.2)'
 /// </summary>
 public class SetupScene3DHelper : EditorWindow
 {
-    [MenuItem("Herramientas 3D/Montar Escenario y Controles 3D (Actividad 4.1)")]
+    [MenuItem("Herramientas 3D/Montar Escenario 3D Completo (Actividad 4.1 y 4.2)")]
     public static void GenerateComplete3DScene()
     {
-        Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.1");
+        Undo.SetCurrentGroupName("Montar Escena 3D Actividad 4.2");
 
-        Debug.Log("--- Iniciando montaje con shaders Standard compatibles ---");
+        Debug.Log("--- Iniciando montaje completo de la escena 3D con Score y Dificultad (Actividad 4.2) ---");
 
-        // 1. Detectar el shader correcto según el pipeline activo (evita el color magenta/rosa)
+        // 1. Detectar shader compatible
         Shader universalShader = ResolveCompatibleShader();
 
-        // 2. Crear materiales con colores estilizados de alto contraste
+        // 2. Crear materiales de alto contraste
         Material matFloor = CreateOrUpdateMaterial("Mat_Floor_DarkSlate", universalShader, new Color(0.12f, 0.16f, 0.22f), 0.2f);
         Material matPlayer = CreateOrUpdateMaterial("Mat_Player_VibrantGold", universalShader, new Color(1.0f, 0.72f, 0.0f), 0.8f);
         Material matPlayerBand = CreateOrUpdateMaterial("Mat_Player_Band_Dark", universalShader, new Color(0.06f, 0.09f, 0.16f), 0.9f);
@@ -34,46 +34,47 @@ public class SetupScene3DHelper : EditorWindow
         Material matPlatform = CreateOrUpdateMaterial("Mat_Platform_EmeraldGreen", universalShader, new Color(0.08f, 0.75f, 0.45f), 0.5f);
         Material matObstacle = CreateOrUpdateMaterial("Mat_Obstacle_RubyRed", universalShader, new Color(0.92f, 0.20f, 0.25f), 0.4f);
 
-        // 3. Configurar Iluminación y Cámara
+        // 3. Configurar Iluminación
         SetupLighting();
 
-        // 4. Construir Escenario 3D
+        // 4. Construir Escenario 3D con Obstáculos Dinámicos
         GameObject groundParent = SetupEnvironment(matFloor, matRamp, matPlatform, matObstacle);
 
-        // 5. Crear Personaje Principal con Físicas y Esfera Nítida con Banda de Rotación
+        // 5. Crear Personaje Principal con Físicas
         GameObject player = SetupPlayer(matPlayer, matPlayerBand);
 
-        // 6. Configurar Cámara Cinemática orientada a la esfera (Criterios 3 y 4)
+        // 6. Configurar Cámara Cinemática
         SetupCamera(player.transform);
 
-        // 7. Construir Interfaz de Usuario (UI) Móvil y Botón de Salto (Criterio 1)
+        // 7. Configurar Gestores de Puntuación y Dificultad
+        SetupGameManagers(player.GetComponent<PlayerController3D>());
+
+        // 8. Construir Interfaz de Usuario Móvil con Contadores (Score y HighScore)
         SetupMobileUI(player.GetComponent<PlayerController3D>());
 
-        EditorUtility.DisplayDialog("Escena 3D Configurada con Éxito", 
-            "¡El proyecto 3D ha sido corregido y configurado con éxito!\n\n" +
-            "✓ Shaders Corregidos: Se eliminó el color magenta/rosa. Ahora todo el escenario tiene iluminación y sombras reales.\n" +
-            "✓ Esfera Visible: El jugador es una esfera DORADA BRILLANTE con banda oscura de giro sobre pista AZUL OSCURA.\n" +
-            "✓ Botón de Salto: Ubicado en la esquina inferior derecha con respuesta inmediata (táctil y teclado).\n" +
-            "✓ Cámara Cinemática: Sigue a la esfera en X y Z con distancia Z constante.\n\n" +
-            "Presiona el botón de Play (▶) para probar el movimiento y el salto.", 
+        EditorUtility.DisplayDialog("Montaje de Actividad 4.2 Concluido", 
+            "¡El proyecto 3D ha sido configurado con éxito para la Actividad 4.2!\n\n" +
+            "✓ Contador Visual UI: Puntuación (Score) que incrementa uniformemente con el avance en Z.\n" +
+            "✓ Persistencia de Datos: Guardado de Récord Histórico (HighScore) con PlayerPrefs.\n" +
+            "✓ Curva de Dificultad: Fases progresivas que aceleran al personaje y a los obstáculos.\n" +
+            "✓ Dinámicas 3D: Obstáculos cinemáticos móviles en X y rotatorios en Y.\n" +
+            "✓ Controles Móviles: D-Pad y Botón SALTO ergonómico en la esquina derecha.\n\n" +
+            "Presiona Play (▶) para probar el avance tridimensional y el contador de puntos.", 
             "¡Excelente!");
     }
 
     private static Shader ResolveCompatibleShader()
     {
-        // Si el proyecto usa Scriptable Render Pipeline (URP/HDRP)
         if (GraphicsSettings.currentRenderPipeline != null)
         {
             Shader urpShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Universal Render Pipeline/Simple Lit");
             if (urpShader != null) return urpShader;
         }
 
-        // Si el proyecto usa Built-in Render Pipeline (Standard Shader nativo)
         Shader standardShader = Shader.Find("Standard");
         if (standardShader != null) return standardShader;
 
-        Shader diffuseShader = Shader.Find("Mobile/Diffuse") ?? Shader.Find("Diffuse") ?? Shader.Find("Unlit/Color");
-        return diffuseShader;
+        return Shader.Find("Mobile/Diffuse") ?? Shader.Find("Diffuse") ?? Shader.Find("Unlit/Color");
     }
 
     private static Material CreateOrUpdateMaterial(string matName, Shader shader, Color color, float smoothness = 0.5f)
@@ -133,19 +134,19 @@ public class SetupScene3DHelper : EditorWindow
         }
         envParent = new GameObject("Environment_3D");
 
-        // 1. Suelo principal (Ejes X y Z)
+        // 1. Suelo principal continuo en el plano XZ (60 unidades de recorrido)
         GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
         floor.name = "Floor_Main";
         floor.transform.SetParent(envParent.transform);
-        floor.transform.position = new Vector3(0f, -0.5f, 25f);
-        floor.transform.localScale = new Vector3(14f, 1f, 60f);
+        floor.transform.position = new Vector3(0f, -0.5f, 35f);
+        floor.transform.localScale = new Vector3(14f, 1f, 80f);
         floor.GetComponent<Renderer>().sharedMaterial = floorMat;
 
-        // 2. Rampa de elevación (Demuestra desplazamiento en Eje Y)
+        // 2. Rampa de prueba (Eje Y)
         GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
         ramp.name = "Ramp_Elevation_Y";
         ramp.transform.SetParent(envParent.transform);
-        ramp.transform.position = new Vector3(0f, 1.25f, 15f);
+        ramp.transform.position = new Vector3(0f, 1.25f, 18f);
         ramp.transform.rotation = Quaternion.Euler(-18f, 0f, 0f);
         ramp.transform.localScale = new Vector3(6f, 0.8f, 10f);
         ramp.GetComponent<Renderer>().sharedMaterial = rampMat;
@@ -154,20 +155,27 @@ public class SetupScene3DHelper : EditorWindow
         GameObject highPlatform = GameObject.CreatePrimitive(PrimitiveType.Cube);
         highPlatform.name = "High_Platform_Y";
         highPlatform.transform.SetParent(envParent.transform);
-        highPlatform.transform.position = new Vector3(0f, 2.75f, 28f);
-        highPlatform.transform.localScale = new Vector3(8f, 1f, 14f);
+        highPlatform.transform.position = new Vector3(0f, 2.75f, 32f);
+        highPlatform.transform.localScale = new Vector3(8f, 1f, 16f);
         highPlatform.GetComponent<Renderer>().sharedMaterial = platMat;
 
-        // 4. Obstáculos laterales (Eje X)
-        for (int i = 0; i < 4; i++)
+        // 4. Obstáculos dinámicos móviles (Curva de dificultad)
+        for (int i = 0; i < 5; i++)
         {
             GameObject obstacle = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            obstacle.name = $"Obstacle_Cube_{i + 1}";
+            obstacle.name = $"Dynamic_Obstacle_{i + 1}";
             obstacle.transform.SetParent(envParent.transform);
-            float xOffset = (i % 2 == 0) ? -3.5f : 3.5f;
-            obstacle.transform.position = new Vector3(xOffset, 0.75f, 8f + (i * 9f));
-            obstacle.transform.localScale = new Vector3(2f, 1.5f, 2f);
+            float zPos = 12f + (i * 12f);
+            obstacle.transform.position = new Vector3(0f, 0.75f, zPos);
+            obstacle.transform.localScale = new Vector3(2.5f, 1.5f, 1.5f);
             obstacle.GetComponent<Renderer>().sharedMaterial = obsMat;
+
+            // Agregar script de oscilación tridimensional
+            MovingObstacle3D mover = obstacle.AddComponent<MovingObstacle3D>();
+            SerializedObject soMover = new SerializedObject(mover);
+            soMover.FindProperty("amplitude").floatValue = 3.5f;
+            soMover.FindProperty("baseSpeed").floatValue = 1.8f + (i * 0.4f);
+            soMover.ApplyModifiedProperties();
         }
 
         return envParent;
@@ -185,19 +193,18 @@ public class SetupScene3DHelper : EditorWindow
         player.name = "Player_Ball3D";
         player.tag = "Player";
 
-        // Posición inicial clara en el suelo (z = 2 para quedar centrado en la cámara)
         player.transform.position = new Vector3(0f, 0.8f, 2.0f);
         player.transform.localScale = Vector3.one * 1.4f;
         player.GetComponent<Renderer>().sharedMaterial = playerMat;
 
-        // Banda ecuatorial de contraste para visualizar la rotación 3D del orbe
+        // Banda ecuatorial de contraste para ver el giro 3D
         GameObject band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         band.name = "Ball_RotationBand";
         band.transform.SetParent(player.transform, false);
         band.transform.localPosition = Vector3.zero;
         band.transform.localScale = new Vector3(1.02f, 0.08f, 1.02f);
         band.GetComponent<Renderer>().sharedMaterial = bandMat;
-        DestroyImmediate(band.GetComponent<Collider>()); // Sin colisión propia
+        DestroyImmediate(band.GetComponent<Collider>());
 
         // Rigidbody físico
         Rigidbody rb = player.GetComponent<Rigidbody>();
@@ -224,7 +231,6 @@ public class SetupScene3DHelper : EditorWindow
             camObj.tag = "MainCamera";
         }
 
-        // Fondo crepuscular elegante
         mainCam.clearFlags = CameraClearFlags.SolidColor;
         mainCam.backgroundColor = new Color(0.10f, 0.14f, 0.20f);
 
@@ -244,6 +250,21 @@ public class SetupScene3DHelper : EditorWindow
 
         mainCam.transform.position = playerTransform.position + cameraOffset;
         mainCam.transform.LookAt(playerTransform.position + Vector3.up * 0.4f);
+    }
+
+    private static void SetupGameManagers(PlayerController3D controller)
+    {
+        GameObject gmObj = GameObject.Find("GameManagers_3D");
+        if (gmObj == null)
+        {
+            gmObj = new GameObject("GameManagers_3D");
+        }
+
+        ScoreManager3D scoreManager = gmObj.GetComponent<ScoreManager3D>();
+        if (scoreManager == null) scoreManager = gmObj.AddComponent<ScoreManager3D>();
+
+        DifficultyManager3D diffManager = gmObj.GetComponent<DifficultyManager3D>();
+        if (diffManager == null) diffManager = gmObj.AddComponent<DifficultyManager3D>();
     }
 
     private static void SetupMobileUI(PlayerController3D controller)
@@ -275,16 +296,58 @@ public class SetupScene3DHelper : EditorWindow
             canvasObj = canvas.gameObject;
         }
 
-        // 3. MobileUIManager3D
         MobileUIManager3D uiManager = canvasObj.GetComponent<MobileUIManager3D>();
         if (uiManager == null) uiManager = canvasObj.AddComponent<MobileUIManager3D>();
 
-        // 4. Panel de Controles Móviles
-        Transform controlsPanel = canvasObj.transform.Find("MobileControlsPanel");
-        if (controlsPanel != null)
+        // 3. Panel Superior de HUD: Contadores de Score, HighScore y Dificultad (Criterio 1 y 3)
+        Transform hudTopPanel = canvasObj.transform.Find("HUD_TopScorePanel");
+        if (hudTopPanel != null) DestroyImmediate(hudTopPanel.gameObject);
+
+        GameObject hudPanelObj = new GameObject("HUD_TopScorePanel", typeof(RectTransform));
+        hudPanelObj.transform.SetParent(canvasObj.transform, false);
+        RectTransform rtHud = hudPanelObj.GetComponent<RectTransform>();
+        rtHud.anchorMin = new Vector2(0f, 1f);
+        rtHud.anchorMax = new Vector2(1f, 1f);
+        rtHud.pivot = new Vector2(0.5f, 1f);
+        rtHud.anchoredPosition = new Vector2(0f, -20f);
+        rtHud.sizeDelta = new Vector2(-40f, 100f);
+
+        // Contador de Score Actual (Izquierda superior)
+        Text txtScore = CreateHeaderText(hudPanelObj.transform, "Txt_CurrentScore", "Puntos: 0", new Vector2(200f, -30f), 38, Color.white, TextAnchor.MiddleLeft);
+        
+        // Contador de HighScore Persistente (Centro superior)
+        Text txtHighScore = CreateHeaderText(hudPanelObj.transform, "Txt_HighScore", "Récord: 0", new Vector2(0f, -30f), 32, new Color(1.0f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
+
+        // Etiqueta de Nivel de Dificultad (Derecha superior)
+        Text txtDiff = CreateHeaderText(hudPanelObj.transform, "Txt_Difficulty", "Dificultad: Nivel 1", new Vector2(-220f, -30f), 30, new Color(0.2f, 0.85f, 0.5f), TextAnchor.MiddleRight);
+
+        // Conectar referencias en ScoreManager3D y DifficultyManager3D
+        GameObject gmObj = GameObject.Find("GameManagers_3D");
+        if (gmObj != null)
         {
-            DestroyImmediate(controlsPanel.gameObject);
+            ScoreManager3D sm = gmObj.GetComponent<ScoreManager3D>();
+            if (sm != null)
+            {
+                SerializedObject soSm = new SerializedObject(sm);
+                soSm.FindProperty("currentScoreText").objectReferenceValue = txtScore;
+                soSm.FindProperty("highScoreText").objectReferenceValue = txtHighScore;
+                soSm.FindProperty("playerTransform").objectReferenceValue = controller.transform;
+                soSm.ApplyModifiedProperties();
+            }
+
+            DifficultyManager3D dm = gmObj.GetComponent<DifficultyManager3D>();
+            if (dm != null)
+            {
+                SerializedObject soDm = new SerializedObject(dm);
+                soDm.FindProperty("playerController").objectReferenceValue = controller;
+                soDm.FindProperty("difficultyText").objectReferenceValue = txtDiff;
+                soDm.ApplyModifiedProperties();
+            }
         }
+
+        // 4. Panel de Controles Móviles (D-Pad y Salto)
+        Transform controlsPanel = canvasObj.transform.Find("MobileControlsPanel");
+        if (controlsPanel != null) DestroyImmediate(controlsPanel.gameObject);
 
         GameObject cPanelObj = new GameObject("MobileControlsPanel", typeof(RectTransform));
         cPanelObj.transform.SetParent(canvasObj.transform, false);
@@ -310,7 +373,27 @@ public class SetupScene3DHelper : EditorWindow
         Vector2 jumpPos = new Vector2(-160, 160);
         CreateTouchButton(controlsPanel, "Btn_Jump", "SALTO\n▲", jumpPos, new Vector2(1, 0), new Vector2(1, 0), VirtualTouchButton.ButtonDirection.Jump, controller, new Vector2(170, 170), jumpBtnColor);
 
-        Debug.Log("[SetupScene3DHelper] UI móvil generada con éxito.");
+        Debug.Log("[SetupScene3DHelper] UI móvil generada con Contadores y Controles táctiles.");
+    }
+
+    private static Text CreateHeaderText(Transform parent, string name, string initialText, Vector2 anchoredPos, int fontSize, Color color, TextAnchor alignment)
+    {
+        GameObject textObj = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        textObj.transform.SetParent(parent, false);
+
+        RectTransform rt = textObj.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(400f, 60f);
+        rt.anchoredPosition = anchoredPos;
+
+        Text txt = textObj.GetComponent<Text>();
+        txt.text = initialText;
+        txt.fontSize = fontSize;
+        txt.fontStyle = FontStyle.Bold;
+        txt.color = color;
+        txt.alignment = alignment;
+        txt.raycastTarget = false;
+
+        return txt;
     }
 
     private static void CreateTouchButton(Transform parent, string name, string label, Vector2 anchoredPos, 
