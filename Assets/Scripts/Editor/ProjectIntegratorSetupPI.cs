@@ -36,10 +36,9 @@ public class ProjectIntegratorSetupPI : EditorWindow
 
     private static void AutoRunPipelineOnce()
     {
-        if (!EditorPrefs.GetBool("PI_BuildPipelineExecuted_v1", false) || !File.Exists($"{SCENES_DIR}/Level_03.unity"))
+        if (!File.Exists("Builds/Windows/RollingSpheres3D.exe"))
         {
-            EditorPrefs.SetBool("PI_BuildPipelineExecuted_v1", true);
-            Debug.Log("[PI InitializeOnLoad] Ejecutando pipeline automático de publicación inicial...");
+            Debug.Log("[PI InitializeOnLoad] Ejecutando pipeline automático de compilación Standalone Windows...");
             RunFullIntegratorPipeline(false);
         }
     }
@@ -48,6 +47,11 @@ public class ProjectIntegratorSetupPI : EditorWindow
     public static void RunFullIntegratorPipelineMenu()
     {
         RunFullIntegratorPipeline(true);
+    }
+
+    public static void BuildStandaloneFromCLI()
+    {
+        RunFullIntegratorPipeline(false);
     }
 
     public static void RunFullIntegratorPipeline(bool showDialog = false)
