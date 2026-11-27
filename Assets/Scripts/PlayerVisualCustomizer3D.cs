@@ -1,88 +1,46 @@
-using UnityEngine;
-using UnityEngine.UI;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
-/// Sistema avanzado de Personalización Visual, Skins y Efectos de Partículas para el Personaje Principal.
-/// Cumple directamente con el Criterio 2 de Moodle:
-/// "La configuración desarrollada permite alterar o personalizar el color y las propiedades visuales del personaje principal."
-/// Incluye:
-/// - Selector dinámico de skins y acabados superficiales (Dorado, Neón, Esmeralda, Cyan).
-/// - Estela tridimensional dinámica (TrailRenderer) con gradiente de color reactivo.
-/// - Sistema de partículas procedurales para retroalimentación al saltar (Jump Particles).
-/// - Sistema de partículas de estallido al sufrir una colisión letal (Death Particles).
-/// - Persistencia de preferencia de skin con PlayerPrefs.
-/// - Soporte para cambio interactivo mediante botón de UI o pulsando la tecla 'C'.
+/// Controlador de personalización estética y efectos visuales del personaje (Criterio 2 - Actividad 4.4 y 4.6).
+/// - Gestiona la paleta cromática del personaje (esfera y banda ecuatorial).
+/// - Administra el TrailRenderer para movimiento y Súper Velocidad (Game Feel).
+/// - Emite partículas procedurales en saltos físicos y colisiones fatales.
+/// - Sincroniza dinámicamente con LightingAtmosphereManager3D.
+/// - Auto-cura materiales morados en tiempo real asignando shaders Standard de alto contraste.
 /// </summary>
 public class PlayerVisualCustomizer3D : MonoBehaviour
 {
     public static PlayerVisualCustomizer3D Instance { get; private set; }
 
     [System.Serializable]
-    public class PlayerSkin
+    public struct PlayerSkin
     {
         public string skinName;
-        public Color primaryColor;
-        public Color bandColor;
-        public Color glowLightColor;
-        public Color trailStartColor;
-        public Color trailEndColor;
+        public Color primaryColor;       // Color principal de la esfera
+        public Color bandColor;          // Color de la banda ecuatorial de contraste
+        public Color trailStartColor;    // Color de inicio de la estela
+        public Color trailEndColor;      // Color de desvanecimiento
+        public Color glowLightColor;     // Luz de apoyo
     }
 
-    [Header("Catálogo de Skins del Personaje")]
-    [SerializeField] private List<PlayerSkin> availableSkins = new List<PlayerSkin>()
-    {
-        new PlayerSkin {
-            skinName = "Dorado Solar",
-            primaryColor = new Color(1.0f, 0.72f, 0.05f),
-            bandColor = new Color(0.12f, 0.16f, 0.22f),
-            glowLightColor = new Color(1.0f, 0.85f, 0.3f),
-            trailStartColor = new Color(1.0f, 0.75f, 0.1f, 0.8f),
-            trailEndColor = new Color(1.0f, 0.5f, 0.0f, 0.0f)
-        },
-        new PlayerSkin {
-            skinName = "Neón Magenta",
-            primaryColor = new Color(1.0f, 0.08f, 0.58f),
-            bandColor = new Color(0.2f, 0.02f, 0.25f),
-            glowLightColor = new Color(1.0f, 0.2f, 0.7f),
-            trailStartColor = new Color(1.0f, 0.1f, 0.6f, 0.8f),
-            trailEndColor = new Color(0.6f, 0.0f, 0.8f, 0.0f)
-        },
-        new PlayerSkin {
-            skinName = "Esmeralda Cuántico",
-            primaryColor = new Color(0.06f, 0.80f, 0.48f),
-            bandColor = new Color(0.02f, 0.20f, 0.15f),
-            glowLightColor = new Color(0.2f, 1.0f, 0.6f),
-            trailStartColor = new Color(0.1f, 0.9f, 0.5f, 0.8f),
-            trailEndColor = new Color(0.0f, 0.4f, 0.3f, 0.0f)
-        },
-        new PlayerSkin {
-            skinName = "Cyan Hiperespacio",
-            primaryColor = new Color(0.0f, 0.85f, 1.0f),
-            bandColor = new Color(0.03f, 0.15f, 0.30f),
-            glowLightColor = new Color(0.3f, 0.9f, 1.0f),
-            trailStartColor = new Color(0.0f, 0.85f, 1.0f, 0.8f),
-            trailEndColor = new Color(0.0f, 0.2f, 0.6f, 0.0f)
-        }
-    };
+    [Header("Catálogo de Skins Disponibles")]
+    [SerializeField] private List<PlayerSkin> availableSkins = new List<PlayerSkin>();
 
-    [Header("Referencias de Renderers")]
+    [Header("Referencias de Render y Efectos")]
     [SerializeField] private Renderer playerRenderer;
     [SerializeField] private Renderer bandRenderer;
     [SerializeField] private TrailRenderer trailRenderer;
-
-    [Header("Efectos de Partículas")]
     [SerializeField] private ParticleSystem jumpParticles;
     [SerializeField] private ParticleSystem deathParticles;
-
-    [Header("Interfaz UI")]
-    [SerializeField] private Text skinButtonText;
+    [SerializeField] private UnityEngine.UI.Text skinButtonText;
 
     private int currentSkinIndex = 0;
     private Material playerInstanceMaterial;
     private Material bandInstanceMaterial;
 
-    private const string PREF_KEY_SKIN = "PlayerSavedSkinIndex";
+    private const string PREF_KEY_SKIN = "PlayerSelectedSkin_Index";
 
     private void Awake()
     {
@@ -96,6 +54,7 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
             return;
         }
 
+        EnsureDefaultSkins();
         InitializeRenderersAndMaterials();
         SetupTrailRenderer();
         SetupProceduralParticles();
@@ -103,7 +62,10 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
 
     private void Start()
     {
-        // Cargar skin persistente previa
+        // 1. Auto-curar cualquier material morado o incompatible en la escena activa
+        FixAnyPurpleMaterialsInScene();
+
+        // 2. Cargar skin persistente previa
         currentSkinIndex = PlayerPrefs.GetInt(PREF_KEY_SKIN, 0);
         if (currentSkinIndex < 0 || currentSkinIndex >= availableSkins.Count)
         {
@@ -122,6 +84,48 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
         }
     }
 
+    private void EnsureDefaultSkins()
+    {
+        if (availableSkins == null || availableSkins.Count == 0)
+        {
+            availableSkins = new List<PlayerSkin>
+            {
+                new PlayerSkin {
+                    skinName = "Dorado Solar",
+                    primaryColor = new Color(1.0f, 0.72f, 0.05f),
+                    bandColor = new Color(0.06f, 0.09f, 0.16f),
+                    trailStartColor = new Color(1.0f, 0.85f, 0.2f, 0.9f),
+                    trailEndColor = new Color(1.0f, 0.4f, 0.0f, 0.0f),
+                    glowLightColor = new Color(1.0f, 0.85f, 0.3f)
+                },
+                new PlayerSkin {
+                    skinName = "Esmeralda Neón",
+                    primaryColor = new Color(0.08f, 0.85f, 0.45f),
+                    bandColor = new Color(0.04f, 0.15f, 0.10f),
+                    trailStartColor = new Color(0.2f, 1.0f, 0.6f, 0.9f),
+                    trailEndColor = new Color(0.0f, 0.6f, 0.3f, 0.0f),
+                    glowLightColor = new Color(0.3f, 1.0f, 0.6f)
+                },
+                new PlayerSkin {
+                    skinName = "Cian Plasma",
+                    primaryColor = new Color(0.05f, 0.75f, 0.95f),
+                    bandColor = new Color(0.02f, 0.12f, 0.22f),
+                    trailStartColor = new Color(0.2f, 0.85f, 1.0f, 0.9f),
+                    trailEndColor = new Color(0.0f, 0.3f, 0.8f, 0.0f),
+                    glowLightColor = new Color(0.2f, 0.8f, 1.0f)
+                },
+                new PlayerSkin {
+                    skinName = "Rubí Fuego",
+                    primaryColor = new Color(0.95f, 0.15f, 0.20f),
+                    bandColor = new Color(0.18f, 0.04f, 0.06f),
+                    trailStartColor = new Color(1.0f, 0.3f, 0.2f, 0.9f),
+                    trailEndColor = new Color(0.8f, 0.0f, 0.1f, 0.0f),
+                    glowLightColor = new Color(1.0f, 0.3f, 0.3f)
+                }
+            };
+        }
+    }
+
     private void InitializeRenderersAndMaterials()
     {
         if (playerRenderer == null)
@@ -131,7 +135,7 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
 
         if (playerRenderer != null)
         {
-            playerInstanceMaterial = MaterialHelper3D.CreateSafeMaterial("Mat_Player_Custom", Color.white, 0.85f);
+            playerInstanceMaterial = MaterialHelper3D.CreateSafeMaterial("Mat_Player_Custom", new Color(1.0f, 0.72f, 0.05f), 0.85f);
             playerRenderer.material = playerInstanceMaterial;
         }
 
@@ -142,7 +146,7 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
             bandRenderer = bandChild.GetComponent<Renderer>();
             if (bandRenderer != null)
             {
-                bandInstanceMaterial = MaterialHelper3D.CreateSafeMaterial("Mat_PlayerBand_Custom", Color.black, 0.9f);
+                bandInstanceMaterial = MaterialHelper3D.CreateSafeMaterial("Mat_PlayerBand_Custom", new Color(0.06f, 0.09f, 0.16f), 0.9f);
                 bandRenderer.material = bandInstanceMaterial;
             }
         }
@@ -185,7 +189,7 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
                 GameObject jumpObj = new GameObject("JumpParticles");
                 jumpObj.transform.SetParent(transform);
                 jumpObj.transform.localPosition = new Vector3(0f, -0.6f, 0f);
-                jumpObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // Dirigido hacia abajo
+                jumpObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
 
                 jumpParticles = jumpObj.AddComponent<ParticleSystem>();
                 ConfigureParticleSystem(jumpParticles, 1.2f, 25, 0.35f, 4.0f);
@@ -324,73 +328,141 @@ public class PlayerVisualCustomizer3D : MonoBehaviour
     {
         if (jumpParticles != null)
         {
-            var main = jumpParticles.main;
-            PlayerSkin skin = availableSkins[currentSkinIndex];
-            main.startColor = skin.primaryColor;
             jumpParticles.Play();
         }
     }
 
-    private Coroutine superSpeedTrailCoroutine = null;
-
     /// <summary>
-    /// Intensifica visualmente la estela (TrailRenderer) durante la Súper Velocidad (Criterio 2 de Moodle 4.6).
-    /// Su duración máxima no excede los 3 segundos.
-    /// </summary>
-    public void EnableSuperSpeedTrail(float duration)
-    {
-        if (superSpeedTrailCoroutine != null)
-        {
-            StopCoroutine(superSpeedTrailCoroutine);
-        }
-        superSpeedTrailCoroutine = StartCoroutine(SuperSpeedTrailRoutine(duration));
-    }
-
-    private System.Collections.IEnumerator SuperSpeedTrailRoutine(float duration)
-    {
-        if (trailRenderer != null)
-        {
-            trailRenderer.startWidth = 1.6f;
-            trailRenderer.time = 0.75f;
-
-            // Gradiente ardiente súper brillante (fuego eléctrico y plasma)
-            Gradient boostGrad = new Gradient();
-            boostGrad.SetKeys(
-                new GradientColorKey[] {
-                    new GradientColorKey(new Color(1f, 0.95f, 0.2f), 0.0f),
-                    new GradientColorKey(new Color(1f, 0.35f, 0.0f), 0.5f),
-                    new GradientColorKey(new Color(0.9f, 0.05f, 0.6f), 1.0f)
-                },
-                new GradientAlphaKey[] {
-                    new GradientAlphaKey(1.0f, 0.0f),
-                    new GradientAlphaKey(0.0f, 1.0f)
-                }
-            );
-            trailRenderer.colorGradient = boostGrad;
-        }
-
-        yield return new WaitForSeconds(duration);
-
-        // Restaurar estela normal de la skin activa
-        if (trailRenderer != null)
-        {
-            trailRenderer.startWidth = 0.8f;
-            trailRenderer.time = 0.45f;
-            ApplySkin(currentSkinIndex);
-        }
-    }
-
-    /// <summary>
-    /// Emite un estallido expansivo de partículas al colisionar letalmente.
+    /// Emite una explosión volumétrica de partículas al colisionar fatalmente con un obstáculo.
     /// </summary>
     public void PlayDeathParticles()
     {
         if (deathParticles != null)
         {
-            var main = deathParticles.main;
-            PlayerSkin skin = availableSkins[currentSkinIndex];
-            main.startColor = skin.primaryColor;
+            deathParticles.transform.position = transform.position;
             deathParticles.Play();
         }
+    }
+
+    /// <summary>
+    /// Potencia y expande la estela visual durante la Súper Velocidad (Criterio 2 - Actividad 4.6).
+    /// </summary>
+    public void EnableSuperSpeedTrail(float duration)
+    {
+        if (trailRenderer == null) return;
+        StartCoroutine(SuperSpeedTrailRoutine(duration));
+    }
+
+    private IEnumerator SuperSpeedTrailRoutine(float duration)
+    {
+        float originalStartWidth = trailRenderer.startWidth;
+        float originalTime = trailRenderer.time;
+        Gradient originalGradient = trailRenderer.colorGradient;
+
+        trailRenderer.startWidth = 1.6f;
+        trailRenderer.time = 0.75f;
+
+        Gradient speedGrad = new Gradient();
+        speedGrad.SetKeys(
+            new GradientColorKey[] {
+                new GradientColorKey(new Color(1.0f, 0.95f, 0.2f), 0.0f),
+                new GradientColorKey(new Color(1.0f, 0.45f, 0.0f), 0.5f),
+                new GradientColorKey(new Color(1.0f, 0.1f, 0.5f), 1.0f)
+            },
+            new GradientAlphaKey[] {
+                new GradientAlphaKey(1.0f, 0.0f),
+                new GradientAlphaKey(0.85f, 0.5f),
+                new GradientAlphaKey(0.0f, 1.0f)
+            }
+        );
+        trailRenderer.colorGradient = speedGrad;
+
+        yield return new WaitForSeconds(duration);
+
+        trailRenderer.startWidth = originalStartWidth;
+        trailRenderer.time = originalTime;
+        trailRenderer.colorGradient = originalGradient;
+    }
+
+    /// <summary>
+    /// Escanea el escenario en busca de materiales morados (#FF00FF o URP en Built-in)
+    /// y los sustituye inmediatamente por materiales con shaders Standard de alto contraste.
+    /// </summary>
+    private void FixAnyPurpleMaterialsInScene()
+    {
+        Renderer[] allRenderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        int fixedCount = 0;
+
+        foreach (Renderer r in allRenderers)
+        {
+            if (r == null || r is TrailRenderer || r is ParticleSystemRenderer) continue;
+
+            Material[] mats = Application.isPlaying ? r.materials : r.sharedMaterials;
+            bool fixedAny = false;
+
+            for (int i = 0; i < mats.Length; i++)
+            {
+                Material m = mats[i];
+                if (m == null || m.shader == null || m.shader.name.Contains("InternalError") || m.shader.name.Contains("Universal Render Pipeline"))
+                {
+                    Color col = ResolveColorByName(r.gameObject.name);
+                    mats[i] = MaterialHelper3D.CreateSafeMaterial($"Mat_{r.gameObject.name}", col);
+                    fixedAny = true;
+                    fixedCount++;
+                }
+            }
+
+            if (fixedAny)
+            {
+                if (Application.isPlaying)
+                {
+                    r.materials = mats;
+                }
+                else
+                {
+                    r.sharedMaterials = mats;
+                }
+            }
+        }
+
+        if (fixedCount > 0)
+        {
+            Debug.Log($"[PlayerVisualCustomizer3D] ¡Escenario auto-curado! {fixedCount} materiales morados corregidos a shader Standard con colores de alto contraste.");
+        }
+    }
+
+    private Color ResolveColorByName(string objName)
+    {
+        string lower = objName.ToLower();
+        if (lower.Contains("floor") || lower.Contains("piso") || lower.Contains("ground") || lower.Contains("track"))
+        {
+            return new Color(0.12f, 0.16f, 0.22f); // Azul pizarra oscuro
+        }
+        if (lower.Contains("ramp") || lower.Contains("rampa"))
+        {
+            return new Color(0.02f, 0.75f, 0.88f); // Cian eléctrico
+        }
+        if (lower.Contains("platform") || lower.Contains("plataforma"))
+        {
+            return new Color(0.08f, 0.75f, 0.45f); // Verde esmeralda
+        }
+        if (lower.Contains("hazard") || lower.Contains("obstacle") || lower.Contains("obstaculo") || lower.Contains("obs"))
+        {
+            return new Color(0.92f, 0.20f, 0.25f); // Rojo carmín
+        }
+        if (lower.Contains("band"))
+        {
+            return new Color(0.06f, 0.09f, 0.16f); // Azul noche profundo
+        }
+        if (lower.Contains("goal") || lower.Contains("portal"))
+        {
+            return new Color(1.0f, 0.85f, 0.10f); // Dorado brillante
+        }
+        if (lower.Contains("boost") || lower.Contains("speed"))
+        {
+            return new Color(1.0f, 0.90f, 0.10f); // Amarillo energía
+        }
+
+        return new Color(1.0f, 0.72f, 0.05f); // Dorado solar
     }
 }

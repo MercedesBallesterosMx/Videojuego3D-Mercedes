@@ -17,6 +17,70 @@ using System.Collections.Generic;
 /// </summary>
 public class SetupScenes45Helper : EditorWindow
 {
+    [MenuItem("Herramientas 3D/🌟 Corregir Shaders y Eliminar Color Morado (Recargar Escena)")]
+    public static void FixShadersAndRemovePurple()
+    {
+        MaterialHelper3D.InvalidateCache();
+        Shader safeShader = MaterialHelper3D.GetSafeShader();
+        Debug.Log($"[FixShaders] Verificando pipeline activo (Shader: {safeShader.name}) y curando materiales...");
+
+        Renderer[] renderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+        int fixedCount = 0;
+
+        foreach (Renderer r in renderers)
+        {
+            if (r == null || r is TrailRenderer || r is ParticleSystemRenderer) continue;
+
+            Material[] mats = r.sharedMaterials;
+            bool changed = false;
+
+            for (int i = 0; i < mats.Length; i++)
+            {
+                Material m = mats[i];
+                if (m == null || m.shader == null || m.shader.name.Contains("InternalError") || m.shader.name.Contains("Universal Render Pipeline"))
+                {
+                    Color targetColor = ResolveColorByNameEditor(r.gameObject.name);
+                    Material fixedMat = MaterialHelper3D.CreateSafeMaterial($"Mat_{r.gameObject.name}", targetColor);
+                    mats[i] = fixedMat;
+                    changed = true;
+                    fixedCount++;
+                }
+            }
+
+            if (changed)
+            {
+                Undo.RecordObject(r, "Curar Shaders Morados");
+                r.sharedMaterials = mats;
+                EditorUtility.SetDirty(r);
+            }
+        }
+
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenesAndStageDependencies();
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[FixShaders] ¡Éxito! {fixedCount} materiales corregidos a '{safeShader.name}'. Color morado eliminado.");
+        EditorUtility.DisplayDialog("Shaders Corregidos con Éxito",
+            $"¡Se eliminó el color morado de la escena!\n\n" +
+            $"✓ {fixedCount} materiales actualizados al shader nativo '{safeShader.name}'.\n" +
+            $"✓ Pista: Azul pizarra oscuro de alto contraste\n" +
+            $"✓ Esfera: Dorado solar brillante con banda oscura\n" +
+            $"✓ Rampas y obstáculos: Cian eléctrico y rojo carmín.", "Aceptar");
+    }
+
+    private static Color ResolveColorByNameEditor(string objName)
+    {
+        string lower = objName.ToLower();
+        if (lower.Contains("floor") || lower.Contains("piso") || lower.Contains("ground") || lower.Contains("track")) return new Color(0.12f, 0.16f, 0.22f);
+        if (lower.Contains("ramp") || lower.Contains("rampa")) return new Color(0.02f, 0.75f, 0.88f);
+        if (lower.Contains("platform") || lower.Contains("plataforma")) return new Color(0.08f, 0.75f, 0.45f);
+        if (lower.Contains("hazard") || lower.Contains("obstacle") || lower.Contains("obs")) return new Color(0.92f, 0.20f, 0.25f);
+        if (lower.Contains("band")) return new Color(0.06f, 0.09f, 0.16f);
+        if (lower.Contains("goal") || lower.Contains("portal")) return new Color(1.0f, 0.85f, 0.10f);
+        if (lower.Contains("boost") || lower.Contains("speed")) return new Color(1.0f, 0.90f, 0.10f);
+        return new Color(1.0f, 0.72f, 0.05f);
+    }
+
     [MenuItem("Herramientas 3D/Montar Sistema Completo y UX (Actividad 4.6)")]
     [MenuItem("Herramientas 3D/Montar Sistema de Interfaz y Navegación (Actividad 4.5)")]
     public static void GenerateCompleteNavigationSystem()

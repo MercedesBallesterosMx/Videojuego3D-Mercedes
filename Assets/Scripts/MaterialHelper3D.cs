@@ -3,17 +3,18 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Utilidad universal para la creación y gestión segura de materiales y shaders en Unity.
-/// Resuelve de raíz problemas de shaders incompatibles (color magenta/fucsia #FF00FF)
-/// garantizando compatibilidad automática tanto en Built-in Render Pipeline como en URP (Universal Render Pipeline).
+/// Resuelve de raíz problemas de shaders incompatibles (color magenta/morado #FF00FF)
+/// detectando con precisión si el proyecto corre en Built-in Render Pipeline (Standard Shader)
+/// o en Scriptable Render Pipeline (URP Lit), garantizando cero shaders magenta y colores vivos.
 /// </summary>
 public static class MaterialHelper3D
 {
     private static Shader s_CachedSafeShader = null;
 
     /// <summary>
-    /// Resuelve de forma infalible un Shader compatible con el proyecto actual.
-    /// Prioriza 'Universal Render Pipeline/Lit' para proyectos URP (estándar en Unity 6),
-    /// asegurando que ningún objeto renderice con el color magenta de error (#FF00FF).
+    /// Resuelve de forma infalible un Shader 100% compatible con el pipeline activo.
+    /// Si el pipeline es Built-in (GraphicsSettings.currentRenderPipeline == null), utiliza 'Standard' o 'Mobile/Diffuse'.
+    /// Si el pipeline es URP (GraphicsSettings.currentRenderPipeline != null), utiliza 'Universal Render Pipeline/Lit'.
     /// </summary>
     public static Shader GetSafeShader()
     {
@@ -22,87 +23,56 @@ public static class MaterialHelper3D
             return s_CachedSafeShader;
         }
 
-        // 1. En Unity 6 y proyectos modernos con URP, buscar prioritariamente los shaders de Universal RP
-        string[] urpCandidates = new string[]
-        {
-            "Universal Render Pipeline/Lit",
-            "Universal Render Pipeline/Simple Lit",
-            "Universal Render Pipeline/Unlit"
-        };
+        // 1. Detectar si el proyecto está usando Scriptable Render Pipeline (URP/HDRP)
+        bool isSRP = GraphicsSettings.currentRenderPipeline != null;
 
-        foreach (string candidate in urpCandidates)
+        if (isSRP)
         {
-            Shader found = Shader.Find(candidate);
-            if (found != null && found.isSupported)
+            Shader urpShader = Shader.Find("Universal Render Pipeline/Lit")
+                            ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                            ?? Shader.Find("Universal Render Pipeline/Unlit");
+
+            if (urpShader != null)
             {
-                s_CachedSafeShader = found;
+                s_CachedSafeShader = urpShader;
                 return s_CachedSafeShader;
             }
         }
 
-        // Si se encontraron pero isSupported no devolvió true (contexto de importación), usar el primer URP Lit disponible
-        foreach (string candidate in urpCandidates)
+        // 2. Si el proyecto usa Built-in Render Pipeline (nativo de Unity)
+        Shader standardShader = Shader.Find("Standard");
+        if (standardShader != null)
         {
-            Shader found = Shader.Find(candidate);
-            if (found != null)
-            {
-                s_CachedSafeShader = found;
-                return s_CachedSafeShader;
-            }
-        }
-
-        // 2. Si no es URP, consultar primitivo por defecto de Unity
-        try
-        {
-            GameObject tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Renderer r = tempPrimitive.GetComponent<Renderer>();
-            if (r != null && r.sharedMaterial != null && r.sharedMaterial.shader != null)
-            {
-                Shader primShader = r.sharedMaterial.shader;
-                if (!primShader.name.Contains("InternalErrorShader"))
-                {
-                    s_CachedSafeShader = primShader;
-                }
-            }
-            Object.DestroyImmediate(tempPrimitive);
-        }
-        catch
-        {
-            // Ignorar fallos de CreatePrimitive en contextos sin simulación
-        }
-
-        if (s_CachedSafeShader != null)
-        {
+            s_CachedSafeShader = standardShader;
             return s_CachedSafeShader;
         }
 
-        // 3. Fallbacks para Built-in Render Pipeline clásico
-        string[] builtInCandidates = new string[]
-        {
-            "Standard",
-            "Mobile/Diffuse",
-            "Legacy Shaders/Diffuse",
-            "Unlit/Color",
-            "UI/Default"
-        };
+        Shader diffuseShader = Shader.Find("Mobile/Diffuse")
+                            ?? Shader.Find("Legacy Shaders/Diffuse")
+                            ?? Shader.Find("Unlit/Color");
 
-        foreach (string candidate in builtInCandidates)
+        if (diffuseShader != null)
         {
-            Shader found = Shader.Find(candidate);
-            if (found != null)
-            {
-                s_CachedSafeShader = found;
-                return s_CachedSafeShader;
-            }
+            s_CachedSafeShader = diffuseShader;
+            return s_CachedSafeShader;
         }
 
+        // 3. Último recurso interno
         s_CachedSafeShader = Shader.Find("Hidden/InternalErrorShader");
         return s_CachedSafeShader;
     }
 
     /// <summary>
+    /// Invalida la caché del shader seguro para forzar una re-evaluación si cambian los ajustes gráficos.
+    /// </summary>
+    public static void InvalidateCache()
+    {
+        s_CachedSafeShader = null;
+    }
+
+    /// <summary>
     /// Crea una nueva instancia de Material configurando correctamente las propiedades
-    /// de color tanto para URP (_BaseColor) como para Built-in (_Color) y brillo especular.
+    /// de color tanto para Built-in (_Color) como para URP (_BaseColor) y brillo especular.
     /// </summary>
     public static Material CreateSafeMaterial(string materialName, Color color, float smoothness = 0.5f)
     {
@@ -113,8 +83,8 @@ public static class MaterialHelper3D
         ApplyColorToMaterial(mat, color);
 
         // Suavidad superficial (Smoothness / Glossiness)
-        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
         if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", smoothness);
+        if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
         if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.05f);
 
         return mat;
@@ -129,16 +99,16 @@ public static class MaterialHelper3D
 
         mat.color = color;
 
-        // URP Lit utiliza _BaseColor
-        if (mat.HasProperty("_BaseColor"))
-        {
-            mat.SetColor("_BaseColor", color);
-        }
-
         // Built-in Standard utiliza _Color
         if (mat.HasProperty("_Color"))
         {
             mat.SetColor("_Color", color);
+        }
+
+        // URP Lit utiliza _BaseColor
+        if (mat.HasProperty("_BaseColor"))
+        {
+            mat.SetColor("_BaseColor", color);
         }
     }
 
