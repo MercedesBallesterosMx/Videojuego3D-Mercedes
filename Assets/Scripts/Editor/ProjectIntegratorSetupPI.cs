@@ -43,6 +43,12 @@ public class ProjectIntegratorSetupPI : EditorWindow
         }
     }
 
+    [MenuItem("Herramientas 3D/🎮 Abrir Menú Principal (MainMenu3D)", priority = 0)]
+    public static void OpenMainMenuScene()
+    {
+        EditorSceneManager.OpenScene($"{SCENES_DIR}/MainMenu3D.unity");
+    }
+
     [MenuItem("Herramientas 3D/🌟 PI: Ejecutar Automatización Completa (Player Settings, Nivel 3 y Compilar)", priority = 1)]
     public static void RunFullIntegratorPipelineMenu()
     {
